@@ -18,7 +18,11 @@ import {
   Calendar,
   Clock,
   CreditCard,
-  Activity
+  Activity,
+  ChevronLeft,
+  ChevronRight,
+  ChevronsLeft,
+  ChevronsRight
 } from 'lucide-react';
 import { TwoStringsLogo } from './TwoStringsLogo';
 import { SubscriptionManager } from './SubscriptionManager';
@@ -37,6 +41,19 @@ export const Dashboard = ({ adminUser, onLogout }) => {
   const [genderFilter, setGenderFilter] = useState('all');
   const [reportStatusFilter, setReportStatusFilter] = useState('all');
   const [actionMessage, setActionMessage] = useState('');
+
+  // Pagination State (10 records per page)
+  const ITEMS_PER_PAGE = 10;
+  const [usersPage, setUsersPage] = useState(1);
+  const [reportsPage, setReportsPage] = useState(1);
+
+  useEffect(() => {
+    setUsersPage(1);
+  }, [userSearch, genderFilter]);
+
+  useEffect(() => {
+    setReportsPage(1);
+  }, [reportStatusFilter]);
 
   // Report/Warning Form Modal State
   const [showReportModal, setShowReportModal] = useState(false);
@@ -246,6 +263,20 @@ export const Dashboard = ({ adminUser, onLogout }) => {
     if (reportStatusFilter === 'all') return true;
     return (r.status || 'pending').toLowerCase() === reportStatusFilter.toLowerCase();
   });
+
+  // Paginated Users Slicing (10 records per page)
+  const totalUsersCount = filteredUsers.length;
+  const totalUserPages = Math.max(1, Math.ceil(totalUsersCount / ITEMS_PER_PAGE));
+  const currentUsersPage = Math.min(usersPage, totalUserPages);
+  const usersStartIndex = (currentUsersPage - 1) * ITEMS_PER_PAGE;
+  const paginatedUsers = filteredUsers.slice(usersStartIndex, usersStartIndex + ITEMS_PER_PAGE);
+
+  // Paginated Reports Slicing (10 records per page)
+  const totalReportsCount = filteredReports.length;
+  const totalReportPages = Math.max(1, Math.ceil(totalReportsCount / ITEMS_PER_PAGE));
+  const currentReportsPage = Math.min(reportsPage, totalReportPages);
+  const reportsStartIndex = (currentReportsPage - 1) * ITEMS_PER_PAGE;
+  const paginatedReports = filteredReports.slice(reportsStartIndex, reportsStartIndex + ITEMS_PER_PAGE);
 
   // Calculate accurate gender counts directly from loaded users list with backend analytics fallback
   const totalMenCount = (users && users.length > 0)
@@ -493,7 +524,7 @@ export const Dashboard = ({ adminUser, onLogout }) => {
                     </tr>
                   </thead>
                   <tbody>
-                    {filteredUsers.map((u, idx) => {
+                    {paginatedUsers.map((u, idx) => {
                       const userName = u.name || u.firstName || 'User';
                       const initial = userName[0].toUpperCase();
                       const avatarBg = getAvatarColor(userName);
@@ -599,6 +630,67 @@ export const Dashboard = ({ adminUser, onLogout }) => {
                     })}
                   </tbody>
                 </table>
+
+                {/* Pagination Controls Footer for Users */}
+                <div className="pagination-wrapper">
+                  <div className="pagination-info">
+                    Showing <strong>{usersStartIndex + 1}</strong>–<strong>{Math.min(usersStartIndex + ITEMS_PER_PAGE, totalUsersCount)}</strong> of <strong>{totalUsersCount}</strong> users
+                  </div>
+                  <div className="pagination-controls">
+                    <button
+                      className="pagination-btn"
+                      disabled={currentUsersPage === 1}
+                      onClick={() => setUsersPage(1)}
+                      title="First Page"
+                    >
+                      <ChevronsLeft size={16} />
+                    </button>
+                    <button
+                      className="pagination-btn"
+                      disabled={currentUsersPage === 1}
+                      onClick={() => setUsersPage((prev) => Math.max(1, prev - 1))}
+                      title="Previous Page"
+                    >
+                      <ChevronLeft size={16} />
+                      <span style={{ marginLeft: '4px' }}>Prev</span>
+                    </button>
+
+                    {Array.from({ length: totalUserPages }, (_, i) => i + 1)
+                      .filter((page) => page === 1 || page === totalUserPages || Math.abs(page - currentUsersPage) <= 1)
+                      .map((page, idx, arr) => {
+                        const showEllipsis = idx > 0 && page - arr[idx - 1] > 1;
+                        return (
+                          <React.Fragment key={page}>
+                            {showEllipsis && <span className="pagination-ellipsis">...</span>}
+                            <button
+                              className={`pagination-btn ${page === currentUsersPage ? 'active' : ''}`}
+                              onClick={() => setUsersPage(page)}
+                            >
+                              {page}
+                            </button>
+                          </React.Fragment>
+                        );
+                      })}
+
+                    <button
+                      className="pagination-btn"
+                      disabled={currentUsersPage === totalUserPages}
+                      onClick={() => setUsersPage((prev) => Math.min(totalUserPages, prev + 1))}
+                      title="Next Page"
+                    >
+                      <span style={{ marginRight: '4px' }}>Next</span>
+                      <ChevronRight size={16} />
+                    </button>
+                    <button
+                      className="pagination-btn"
+                      disabled={currentUsersPage === totalUserPages}
+                      onClick={() => setUsersPage(totalUserPages)}
+                      title="Last Page"
+                    >
+                      <ChevronsRight size={16} />
+                    </button>
+                  </div>
+                </div>
               </div>
             )}
           </div>
@@ -645,7 +737,7 @@ export const Dashboard = ({ adminUser, onLogout }) => {
               </div>
             ) : (
               <div className="reports-cards-grid">
-                {filteredReports.map((report) => {
+                {paginatedReports.map((report) => {
                   const reporter = report.reporterId || {};
                   const reported = report.reportedId || {};
 
@@ -801,6 +893,67 @@ export const Dashboard = ({ adminUser, onLogout }) => {
                     </div>
                   );
                 })}
+
+                {/* Pagination Controls Footer for Reports */}
+                <div className="pagination-wrapper" style={{ marginTop: '20px' }}>
+                  <div className="pagination-info">
+                    Showing <strong>{reportsStartIndex + 1}</strong>–<strong>{Math.min(reportsStartIndex + ITEMS_PER_PAGE, totalReportsCount)}</strong> of <strong>{totalReportsCount}</strong> reports
+                  </div>
+                  <div className="pagination-controls">
+                    <button
+                      className="pagination-btn"
+                      disabled={currentReportsPage === 1}
+                      onClick={() => setReportsPage(1)}
+                      title="First Page"
+                    >
+                      <ChevronsLeft size={16} />
+                    </button>
+                    <button
+                      className="pagination-btn"
+                      disabled={currentReportsPage === 1}
+                      onClick={() => setReportsPage((prev) => Math.max(1, prev - 1))}
+                      title="Previous Page"
+                    >
+                      <ChevronLeft size={16} />
+                      <span style={{ marginLeft: '4px' }}>Prev</span>
+                    </button>
+
+                    {Array.from({ length: totalReportPages }, (_, i) => i + 1)
+                      .filter((page) => page === 1 || page === totalReportPages || Math.abs(page - currentReportsPage) <= 1)
+                      .map((page, idx, arr) => {
+                        const showEllipsis = idx > 0 && page - arr[idx - 1] > 1;
+                        return (
+                          <React.Fragment key={page}>
+                            {showEllipsis && <span className="pagination-ellipsis">...</span>}
+                            <button
+                              className={`pagination-btn ${page === currentReportsPage ? 'active' : ''}`}
+                              onClick={() => setReportsPage(page)}
+                            >
+                              {page}
+                            </button>
+                          </React.Fragment>
+                        );
+                      })}
+
+                    <button
+                      className="pagination-btn"
+                      disabled={currentReportsPage === totalReportPages}
+                      onClick={() => setReportsPage((prev) => Math.min(totalReportPages, prev + 1))}
+                      title="Next Page"
+                    >
+                      <span style={{ marginRight: '4px' }}>Next</span>
+                      <ChevronRight size={16} />
+                    </button>
+                    <button
+                      className="pagination-btn"
+                      disabled={currentReportsPage === totalReportPages}
+                      onClick={() => setReportsPage(totalReportPages)}
+                      title="Last Page"
+                    >
+                      <ChevronsRight size={16} />
+                    </button>
+                  </div>
+                </div>
               </div>
             )}
           </div>
