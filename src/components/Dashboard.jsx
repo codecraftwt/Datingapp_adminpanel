@@ -22,14 +22,24 @@ import {
   ChevronLeft,
   ChevronRight,
   ChevronsLeft,
-  ChevronsRight
+  ChevronsRight,
+  UserCheck,
+  UserX,
+  Menu,
+  Crown,
+  Sparkles,
+  Award,
+  Zap,
+  DollarSign,
+  Package,
 } from 'lucide-react';
 import { TwoStringsLogo } from './TwoStringsLogo';
 import { SubscriptionManager } from './SubscriptionManager';
-import { fetchAdminUsers, fetchAdminReports, updateReportStatus, warnUser } from '../services/api';
+import { fetchAdminUsers, fetchAdminReports, updateReportStatus, warnUser, updateUserStatus, fetchUserSubscription } from '../services/api';
 
 export const Dashboard = ({ adminUser, onLogout }) => {
   const [activeTab, setActiveTab] = useState('users');
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [users, setUsers] = useState([]);
   const [reports, setReports] = useState([]);
   const [userAnalytics, setUserAnalytics] = useState(null);
@@ -39,8 +49,52 @@ export const Dashboard = ({ adminUser, onLogout }) => {
   // Filters & Search
   const [userSearch, setUserSearch] = useState('');
   const [genderFilter, setGenderFilter] = useState('all');
+  const [accountStatusFilter, setAccountStatusFilter] = useState('all');
+  const [subscriptionFilter, setSubscriptionFilter] = useState('all');
   const [reportStatusFilter, setReportStatusFilter] = useState('all');
   const [actionMessage, setActionMessage] = useState('');
+
+  // User Activate/Deactivate Status Modal State
+  const [statusModal, setStatusModal] = useState({
+    open: false,
+    user: null,
+    newStatus: false,
+    reason: '',
+    submitting: false,
+  });
+
+  // User Subscription Details Modal State
+  const [subscriptionModal, setSubscriptionModal] = useState({
+    open: false,
+    user: null,
+    loading: false,
+    details: null,
+  });
+
+  const handleViewUserSubscription = async (targetUser) => {
+    const uId = targetUser._id || targetUser.id;
+    setSubscriptionModal({
+      open: true,
+      user: targetUser,
+      loading: true,
+      details: null,
+    });
+    try {
+      const res = await fetchUserSubscription(uId);
+      setSubscriptionModal((prev) => ({
+        ...prev,
+        loading: false,
+        details: res,
+      }));
+    } catch (e) {
+      console.error('Failed to fetch user subscription details:', e);
+      setSubscriptionModal((prev) => ({
+        ...prev,
+        loading: false,
+        details: null,
+      }));
+    }
+  };
 
   // Pagination State (10 records per page)
   const ITEMS_PER_PAGE = 10;
@@ -49,7 +103,7 @@ export const Dashboard = ({ adminUser, onLogout }) => {
 
   useEffect(() => {
     setUsersPage(1);
-  }, [userSearch, genderFilter]);
+  }, [userSearch, genderFilter, accountStatusFilter, subscriptionFilter]);
 
   useEffect(() => {
     setReportsPage(1);
@@ -62,18 +116,65 @@ export const Dashboard = ({ adminUser, onLogout }) => {
     reportedName: '',
     category: 'Harassment / Offensive Behavior',
     severity: 'high',
+    reportId: null,
     reason: '',
     status: 'pending',
     attachmentName: '',
   });
 
-  const openReportModalForUser = (targetUser) => {
+  const handleOpenStatusModal = (targetUser, newStatus) => {
+    setStatusModal({
+      open: true,
+      user: targetUser,
+      newStatus,
+      reason: newStatus ? '' : 'Account deactivated by admin moderation team',
+      submitting: false,
+    });
+  };
+
+  const handleConfirmStatusChange = async () => {
+    if (!statusModal.user) return;
+    const uId = statusModal.user._id || statusModal.user.id;
+    const uName = statusModal.user.name || statusModal.user.firstName || 'User';
+    setStatusModal((prev) => ({ ...prev, submitting: true }));
+    try {
+      await updateUserStatus(uId, statusModal.newStatus, statusModal.reason);
+      setUsers((prev) =>
+        prev.map((u) => {
+          const currentId = (u._id || u.id)?.toString();
+          if (currentId === uId.toString()) {
+            return {
+              ...u,
+              isActive: statusModal.newStatus,
+              deactivatedAt: statusModal.newStatus ? null : new Date(),
+              deactivationReason: statusModal.newStatus ? null : statusModal.reason,
+            };
+          }
+          return u;
+        })
+      );
+      setActionMessage(
+        statusModal.newStatus
+          ? `User ${uName} has been activated successfully.`
+          : `User ${uName} has been deactivated and blocked from exploring the app.`
+      );
+      setTimeout(() => setActionMessage(''), 4500);
+      setStatusModal({ open: false, user: null, newStatus: false, reason: '', submitting: false });
+    } catch (err) {
+      console.error('Failed to update user status:', err);
+      alert(err.response?.data?.message || 'Failed to update user status.');
+      setStatusModal((prev) => ({ ...prev, submitting: false }));
+    }
+  };
+
+  const openReportModalForUser = (targetUser, existingReportId = null) => {
     const uId = targetUser._id || targetUser.id;
     const uName = targetUser.name || targetUser.firstName || 'User';
     setReportFormData((prev) => ({
       ...prev,
       reportedId: uId,
       reportedName: uName,
+      reportId: existingReportId || null,
     }));
     setShowReportModal(true);
   };
@@ -92,6 +193,7 @@ export const Dashboard = ({ adminUser, onLogout }) => {
       if (targetReportedId) {
         const apiRes = await warnUser({
           reportedId: targetReportedId,
+          reportId: reportFormData.reportId || undefined,
           category: reportFormData.category,
           message: reportFormData.reason || 'Official community warning issued by Admin moderation team.',
           severity: reportFormData.severity,
@@ -114,17 +216,43 @@ export const Dashboard = ({ adminUser, onLogout }) => {
       };
     }
 
-    const newReportItem = {
-      _id: 'rep_' + Date.now(),
-      reporterId: { name: 'Admin Moderation Team', email: 'admin@datingapp.com' },
-      reportedId: reportedObj,
-      reason: `[${reportFormData.category}] ${reportFormData.reason || 'Official community warning issued by Admin moderation team.'} (Severity: ${reportFormData.severity.toUpperCase()})`,
-      status: 'reviewed',
-      createdAt: new Date().toISOString(),
-      attachment: reportFormData.attachmentName ? reportFormData.attachmentName : null,
-    };
+    // Check if an existing report card exists for this reported user
+    const targetReportId = reportFormData.reportId || reports.find((r) => {
+      const rRepId = r.reportedId?._id || r.reportedId?.id || r.reportedId;
+      return rRepId && rRepId.toString() === targetReportedId.toString();
+    })?._id;
 
-    setReports((prev) => [newReportItem, ...prev]);
+    if (targetReportId) {
+      // Update existing card in-place (no duplicate card)
+      setReports((prev) => prev.map((rep) => {
+        if (rep._id === targetReportId) {
+          return {
+            ...rep,
+            reason: `[${reportFormData.category}] ${reportFormData.reason || 'Official community warning issued by Admin moderation team.'} (Severity: ${reportFormData.severity.toUpperCase()})`,
+            details: `Severity: ${reportFormData.severity.toUpperCase()} | Issued by Admin Moderation Team`,
+            status: 'reviewed',
+            attachment: reportFormData.attachmentName ? reportFormData.attachmentName : rep.attachment,
+            warningIssuedAt: new Date().toISOString(),
+          };
+        }
+        return rep;
+      }));
+    } else {
+      // Create new report only if no existing report card exists
+      const newReportItem = {
+        _id: 'rep_' + Date.now(),
+        reporterId: { name: 'Admin Moderation Team', email: 'admin@datingapp.com' },
+        reportedId: reportedObj,
+        reason: `[${reportFormData.category}] ${reportFormData.reason || 'Official community warning issued by Admin moderation team.'} (Severity: ${reportFormData.severity.toUpperCase()})`,
+        details: `Severity: ${reportFormData.severity.toUpperCase()} | Issued by Admin Moderation Team`,
+        status: 'reviewed',
+        createdAt: new Date().toISOString(),
+        attachment: reportFormData.attachmentName ? reportFormData.attachmentName : null,
+      };
+
+      setReports((prev) => [newReportItem, ...prev]);
+    }
+
     setTimeout(() => setActionMessage(''), 5000);
     setShowReportModal(false);
     setActiveTab('reports');
@@ -133,6 +261,7 @@ export const Dashboard = ({ adminUser, onLogout }) => {
     setReportFormData({
       reportedId: '',
       reportedName: '',
+      reportId: null,
       category: 'Harassment / Offensive Behavior',
       severity: 'high',
       reason: '',
@@ -256,7 +385,28 @@ export const Dashboard = ({ adminUser, onLogout }) => {
       matchesGender = uGender === genderFilter.toLowerCase();
     }
 
-    return matchesSearch && matchesGender;
+    let matchesAccountStatus = true;
+    if (accountStatusFilter === 'active') {
+      matchesAccountStatus = u.isActive !== false;
+    } else if (accountStatusFilter === 'inactive') {
+      matchesAccountStatus = u.isActive === false;
+    }
+
+    let matchesSubscription = true;
+    const rawTier = (u.subscriptionTier || u.subscriptionPlanName || u.subscription?.planType || 'Free').toLowerCase();
+    const status = (u.subscriptionStatus || u.subscription?.status || 'inactive').toLowerCase();
+    const isPaid = rawTier !== 'free' && rawTier !== 'none';
+    const isActivePaid = isPaid && (status === 'active' || (status !== 'canceled' && status !== 'cancelled' && status !== 'expired'));
+
+    if (subscriptionFilter === 'paid') {
+      matchesSubscription = isActivePaid;
+    } else if (subscriptionFilter === 'free') {
+      matchesSubscription = !isActivePaid;
+    } else if (subscriptionFilter !== 'all') {
+      matchesSubscription = rawTier.includes(subscriptionFilter.toLowerCase());
+    }
+
+    return matchesSearch && matchesGender && matchesAccountStatus && matchesSubscription;
   });
 
   const filteredReports = reports.filter((r) => {
@@ -316,158 +466,230 @@ export const Dashboard = ({ adminUser, onLogout }) => {
   };
 
   return (
-    <div className="dashboard-layout">
-      {/* Top Header Navbar */}
-      <header className="dashboard-navbar">
-        <div className="navbar-brand">
-          <TwoStringsLogo size={40} showText={true} />
-          <span className="navbar-badge">ADMIN PANEL</span>
+    <div className="pink-dashboard-wrapper">
+      {/* Mobile Sidebar Overlay */}
+      {mobileSidebarOpen && (
+        <div className="sidebar-backdrop" onClick={() => setMobileSidebarOpen(false)} />
+      )}
+
+      {/* Left Pink Sidebar Navigation */}
+      <aside className={`pink-admin-sidebar ${mobileSidebarOpen ? 'sidebar-open' : ''}`}>
+        <div className="sidebar-header">
+          <TwoStringsLogo size={42} color="#ffffff" textColor="#ffffff" showText={true} />
+          <span className="sidebar-badge">ADMIN PANEL</span>
         </div>
 
-        <div className="navbar-actions">
-          <button className="nav-icon-btn" onClick={loadData} title="Refresh All Data">
-            <RefreshCw size={18} className={loading ? 'spin-icon' : ''} />
-          </button>
-          
-          <div className="admin-profile-info">
-            <div className="admin-avatar">
-              {adminUser?.email?.[0]?.toUpperCase() || 'A'}
-            </div>
-            <div className="admin-details">
-              <span className="admin-name">{adminUser?.name || 'Super Admin'}</span>
-              <span className="admin-role">{adminUser?.email}</span>
-            </div>
-          </div>
+        <div className="sidebar-nav-section">
+          <span className="sidebar-section-title">ADMIN NAVIGATION</span>
+          <nav className="sidebar-menu">
+            <button
+              className={`sidebar-nav-item ${activeTab === 'users' ? 'active' : ''}`}
+              onClick={() => {
+                setActiveTab('users');
+                setMobileSidebarOpen(false);
+              }}
+            >
+              <div className="nav-item-icon">
+                <Users size={20} />
+              </div>
+              <span className="nav-item-label">All Registered Users</span>
+              {filteredUsers.length > 0 && (
+                <span className="nav-count-badge">{filteredUsers.length}</span>
+              )}
+            </button>
 
-          <button className="logout-btn" onClick={loadData} title="Refresh Data" style={{ marginRight: '10px', backgroundColor: '#3A3A48' }}>
-            <RefreshCw size={16} />
-            <span>Refresh</span>
-          </button>
-          <button className="logout-btn" onClick={onLogout} title="Logout">
-            <LogOut size={18} />
-            <span>Logout</span>
+            <button
+              className={`sidebar-nav-item ${activeTab === 'reports' ? 'active' : ''}`}
+              onClick={() => {
+                setActiveTab('reports');
+                setMobileSidebarOpen(false);
+              }}
+            >
+              <div className="nav-item-icon">
+                <ShieldAlert size={20} />
+              </div>
+              <span className="nav-item-label">Reported users and reporters</span>
+              {filteredReports.length > 0 && (
+                <span className="nav-count-badge badge-warning">{filteredReports.length}</span>
+              )}
+            </button>
+
+            <button
+              className={`sidebar-nav-item ${activeTab === 'subscriptions' ? 'active' : ''}`}
+              onClick={() => {
+                setActiveTab('subscriptions');
+                setMobileSidebarOpen(false);
+              }}
+            >
+              <div className="nav-item-icon">
+                <CreditCard size={20} />
+              </div>
+              <span className="nav-item-label">Subscription features</span>
+              <span className="nav-count-badge badge-premium">VIP</span>
+            </button>
+          </nav>
+        </div>
+
+        {/* Sidebar Footer */}
+        <div className="sidebar-footer">
+          <button className="sidebar-logout-full-btn" onClick={onLogout} title="Logout">
+            <LogOut size={16} />
+            <span>Logout Account</span>
           </button>
         </div>
-      </header>
+      </aside>
 
-      {/* Main Content Area */}
-      <main className="dashboard-main">
-        {actionMessage && (
-          <div className="alert-banner alert-success animate-fade-in" style={{ marginBottom: '16px' }}>
-            <CheckCircle2 size={18} />
-            <span>{actionMessage}</span>
-          </div>
-        )}
+      {/* Right Content Body Area */}
+      <div className="pink-admin-main-area">
+        {/* Top Header Bar */}
+        <header className="pink-top-header">
+          <div className="header-left">
+            <button
+              className="mobile-menu-toggle"
+              onClick={() => setMobileSidebarOpen(!mobileSidebarOpen)}
+              title="Toggle Navigation Menu"
+            >
+              <Menu size={22} />
+            </button>
 
-        {/* Top Summary Cards */}
-        <div className="stats-grid">
-          <div 
-            className={`stat-card stat-users ${activeTab === 'users' ? 'selected-card' : ''}`}
-            onClick={() => setActiveTab('users')}
-            style={{ cursor: 'pointer' }}
-          >
-            <div className="stat-icon-wrapper">
-              <Users size={26} />
+            <div className="header-title-box">
+              <h1 className="header-page-title">
+                {activeTab === 'users' && 'All Registered Users'}
+                {activeTab === 'reports' && 'Reported Users & Reporters'}
+                {activeTab === 'subscriptions' && 'Subscription Features & Dynamic Pricing'}
+              </h1>
+              <p className="header-page-sub">
+                {activeTab === 'users' && 'Manage user accounts, active status, search filters, and profile details'}
+                {activeTab === 'reports' && 'Review user complaints, issue official warnings, and manage moderation reports'}
+                {activeTab === 'subscriptions' && 'Manage VIP plans, dynamic pricing, and feature access permissions'}
+              </p>
             </div>
-            <div className="stat-content">
-              <span className="stat-value">{userAnalytics?.totalUsers ?? users.length}</span>
-              <span className="stat-label">All Registered Users</span>
-              <span className="stat-subtext">
-                Men: {totalMenCount} | Women: {totalWomenCount}
-              </span>
-            </div>
           </div>
 
-          <div 
-            className={`stat-card stat-reports ${activeTab === 'reports' ? 'selected-card' : ''}`}
-            onClick={() => setActiveTab('reports')}
-            style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'relative' }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+          <div className="header-right">
+            {/* Refresh Button */}
+            <button className="header-refresh-btn" onClick={loadData} title="Refresh All Data">
+              <RefreshCw size={15} className={loading ? 'spin-icon' : ''} />
+              <span>Refresh</span>
+            </button>
+
+            {/* Live System Indicator */}
+            <div className="live-status-pill">
+              <span className="live-pulse-dot" />
+              <span>Live System Active</span>
+            </div>
+
+            {/* Super Admin & Email Profile Card */}
+            <div className="header-admin-profile">
+              <div className="header-admin-avatar">
+                {adminUser?.email?.[0]?.toUpperCase() || 'A'}
+              </div>
+              <div className="header-admin-details">
+                <span className="header-admin-name">{adminUser?.name || 'Super Admin'}</span>
+                <span className="header-admin-email">{adminUser?.email}</span>
+              </div>
+            </div>
+
+            {/* Topbar Logout Button */}
+            <button className="header-logout-btn" onClick={onLogout} title="Logout">
+              <LogOut size={15} />
+              <span>Logout</span>
+            </button>
+          </div>
+        </header>
+
+        {/* Inner Content Panel */}
+        <main className="dashboard-content-panel">
+          {actionMessage && (
+            <div className="alert-banner alert-success animate-fade-in" style={{ marginBottom: '20px' }}>
+              <CheckCircle2 size={18} />
+              <span>{actionMessage}</span>
+            </div>
+          )}
+
+          {/* Top Summary Analytics Cards */}
+          <div className="stats-grid">
+            <div 
+              className={`stat-card stat-users ${activeTab === 'users' ? 'selected-card' : ''}`}
+              onClick={() => setActiveTab('users')}
+              style={{ cursor: 'pointer' }}
+            >
               <div className="stat-icon-wrapper">
-                <ShieldAlert size={26} />
+                <Users size={26} />
               </div>
               <div className="stat-content">
-                <span className="stat-value">{reportAnalytics?.totalReports ?? reports.length}</span>
-                <span className="stat-label">All Reported Users</span>
+                <span className="stat-value">{userAnalytics?.totalUsers ?? users.length}</span>
+                <span className="stat-label">All Registered Users</span>
                 <span className="stat-subtext">
-                  Pending: {reportAnalytics?.pendingReports ?? 0} | Resolved: {reportAnalytics?.resolvedReports ?? 0}
+                  Active: {userAnalytics?.activeUsers ?? users.filter(u => u.isActive !== false).length} | Inactive: {userAnalytics?.inactiveUsers ?? users.filter(u => u.isActive === false).length}
                 </span>
               </div>
             </div>
-            <button
-              type="button"
-              className="btn-create-report"
-              onClick={(e) => {
-                e.stopPropagation();
-                setShowReportModal(true);
-              }}
-              style={{ marginLeft: 'auto', alignSelf: 'center', padding: '6px 12px', fontSize: '12px', whiteSpace: 'nowrap' }}
-              title="Submit Reported User Form"
+
+            <div 
+              className={`stat-card stat-reports ${activeTab === 'reports' ? 'selected-card' : ''}`}
+              onClick={() => setActiveTab('reports')}
+              style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px' }}
             >
-              <PlusCircle size={14} />
-              <span>Submit Reported User</span>
-            </button>
-          </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '14px', minWidth: '180px' }}>
+                <div className="stat-icon-wrapper">
+                  <ShieldAlert size={26} />
+                </div>
+                <div className="stat-content">
+                  <span className="stat-value">{reportAnalytics?.totalReports ?? reports.length}</span>
+                  <span className="stat-label">Reported Users & Reporters</span>
+                  <span className="stat-subtext">
+                    Pending: {reportAnalytics?.pendingReports ?? 0} | Resolved: {reportAnalytics?.resolvedReports ?? 0}
+                  </span>
+                </div>
+              </div>
+              <button
+                type="button"
+                className="btn-create-report"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setShowReportModal(true);
+                }}
+                style={{ padding: '7px 14px', fontSize: '12px', whiteSpace: 'nowrap' }}
+                title="Submit Reported User Form"
+              >
+                <PlusCircle size={14} />
+                <span>Submit Report</span>
+              </button>
+            </div>
 
-          <div className="stat-card stat-online" style={{ cursor: 'default' }}>
-            <div className="stat-icon-wrapper" style={{ backgroundColor: 'rgba(16, 185, 129, 0.15)', color: '#10B981' }}>
-              <CheckCircle2 size={26} />
+            <div className="stat-card stat-online" style={{ cursor: 'default' }}>
+              <div className="stat-icon-wrapper" style={{ backgroundColor: 'rgba(16, 185, 129, 0.15)', color: '#10B981' }}>
+                <CheckCircle2 size={26} />
+              </div>
+              <div className="stat-content">
+                <span className="stat-value">
+                  {userAnalytics?.onlineUsers ?? users.filter(u => u.isOnline).length}
+                </span>
+                <span className="stat-label">Currently Online Users</span>
+                <span className="stat-subtext" style={{ color: '#10B981', fontWeight: '600', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                  <Activity size={12} /> Active Sessions
+                </span>
+              </div>
             </div>
-            <div className="stat-content">
-              <span className="stat-value">
-                {userAnalytics?.onlineUsers ?? users.filter(u => u.isOnline).length}
-              </span>
-              <span className="stat-label">Currently Online Users</span>
-              <span className="stat-subtext" style={{ color: '#10B981', fontWeight: '600', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                <Activity size={12} /> Active Sessions
-              </span>
+
+            <div 
+              className={`stat-card ${activeTab === 'subscriptions' ? 'selected-card' : ''}`}
+              onClick={() => setActiveTab('subscriptions')}
+              style={{ cursor: 'pointer', borderLeft: '4px solid #fe3c72' }}
+            >
+              <div className="stat-icon-wrapper" style={{ backgroundColor: 'rgba(254, 60, 114, 0.15)', color: '#fe3c72' }}>
+                <CreditCard size={26} />
+              </div>
+              <div className="stat-content">
+                <span className="stat-value">Plans</span>
+                <span className="stat-label">Subscription Features</span>
+                <span className="stat-subtext" style={{ color: '#fe3c72', fontWeight: '600' }}>
+                  Dynamic Pricing
+                </span>
+              </div>
             </div>
           </div>
-
-          <div 
-            className={`stat-card ${activeTab === 'subscriptions' ? 'selected-card' : ''}`}
-            onClick={() => setActiveTab('subscriptions')}
-            style={{ cursor: 'pointer', borderLeft: '4px solid #ff4d6d' }}
-          >
-            <div className="stat-icon-wrapper" style={{ backgroundColor: 'rgba(255, 77, 109, 0.15)', color: '#ff4d6d' }}>
-              <CreditCard size={26} />
-            </div>
-            <div className="stat-content">
-              <span className="stat-value">Plans</span>
-              <span className="stat-label">Subscriptions & Features</span>
-              <span className="stat-subtext" style={{ color: '#ff4d6d', fontWeight: '600' }}>
-                Manage Dynamic Pricing
-              </span>
-            </div>
-          </div>
-        </div>
-
-        {/* Navigation Tabs */}
-        <div className="dash-tabs">
-          <button 
-            className={`tab-btn ${activeTab === 'users' ? 'active' : ''}`}
-            onClick={() => setActiveTab('users')}
-          >
-            <Users size={18} style={{ marginRight: '8px' }} />
-            All Registered Users ({filteredUsers.length})
-          </button>
-          <button 
-            className={`tab-btn ${activeTab === 'reports' ? 'active' : ''}`}
-            onClick={() => setActiveTab('reports')}
-          >
-            <ShieldAlert size={18} style={{ marginRight: '8px' }} />
-            All Reported Users & Reporters ({filteredReports.length})
-          </button>
-          <button 
-            className={`tab-btn ${activeTab === 'subscriptions' ? 'active' : ''}`}
-            onClick={() => setActiveTab('subscriptions')}
-            style={{ borderColor: activeTab === 'subscriptions' ? '#ff4d6d' : undefined }}
-          >
-            <CreditCard size={18} style={{ marginRight: '8px', color: activeTab === 'subscriptions' ? '#ff4d6d' : undefined }} />
-            Subscriptions & Features
-          </button>
-        </div>
 
         {/* TAB 1: ALL REGISTERED USERS */}
         {activeTab === 'users' && (
@@ -496,6 +718,35 @@ export const Dashboard = ({ adminUser, onLogout }) => {
                   <option value="women">Women</option>
                 </select>
               </div>
+
+              <div className="filter-box">
+                <ShieldCheck size={16} className="filter-icon" />
+                <select 
+                  value={accountStatusFilter} 
+                  onChange={(e) => setAccountStatusFilter(e.target.value)}
+                  className="filter-select"
+                >
+                  <option value="all">All Accounts (Active & Inactive)</option>
+                  <option value="active">Active Accounts Only</option>
+                  <option value="inactive">Inactive / Blocked Accounts Only</option>
+                </select>
+              </div>
+
+              <div className="filter-box">
+                <CreditCard size={16} className="filter-icon" />
+                <select 
+                  value={subscriptionFilter} 
+                  onChange={(e) => setSubscriptionFilter(e.target.value)}
+                  className="filter-select"
+                >
+                  <option value="all">All Subscriptions (Paid & Free)</option>
+                  <option value="paid">Paid Subscribers Only</option>
+                  <option value="free">Free Tier Only</option>
+                  <option value="gold">Gold Plans</option>
+                  <option value="platinum">Platinum / VIP</option>
+                  <option value="silver">Silver Plans</option>
+                </select>
+              </div>
             </div>
 
             {loading ? (
@@ -509,20 +760,27 @@ export const Dashboard = ({ adminUser, onLogout }) => {
                 <p>No registered users found.</p>
               </div>
             ) : (
-              <div className="table-responsive">
-                <table className="admin-table">
-                  <thead>
-                    <tr>
-                      <th>Badge</th>
-                      <th>Full Name</th>
-                      <th>Email / Mobile</th>
-                      <th>Gender</th>
-                      <th>Age</th>
-                      <th>Status</th>
-                      <th>Joined Date</th>
-                      <th>Actions</th>
-                    </tr>
-                  </thead>
+              <>
+                <div className="table-scroll-hint">
+                  <ChevronRight size={14} style={{ color: '#ff4d6d' }} />
+                  <span>Swipe horizontally to view all columns &amp; actions</span>
+                </div>
+                <div className="table-responsive">
+                  <table className="admin-table">
+                    <thead>
+                      <tr>
+                        <th style={{ width: '56px' }}>Badge</th>
+                        <th style={{ minWidth: '160px' }}>Full Name</th>
+                        <th style={{ minWidth: '170px' }}>Email / Mobile</th>
+                        <th style={{ minWidth: '90px' }}>Gender</th>
+                        <th style={{ minWidth: '70px' }}>Age</th>
+                        <th style={{ minWidth: '150px' }}>Subscription</th>
+                        <th style={{ minWidth: '110px' }}>Presence</th>
+                        <th style={{ minWidth: '130px' }}>Account Status</th>
+                        <th style={{ minWidth: '120px' }}>Joined Date</th>
+                        <th className="actions-header-cell">Actions</th>
+                      </tr>
+                    </thead>
                   <tbody>
                     {paginatedUsers.map((u, idx) => {
                       const userName = u.name || u.firstName || 'User';
@@ -589,6 +847,98 @@ export const Dashboard = ({ adminUser, onLogout }) => {
                           </td>
                           <td>{u.age || 'N/A'}</td>
                           <td>
+                            {(() => {
+                              const rawTier = u.subscriptionPlanName || u.subscriptionTier || u.subscription?.planName || u.subscription?.planType || 'Free';
+                              const status = (u.subscriptionStatus || u.subscription?.status || 'inactive').toLowerCase();
+                              const isPaid = rawTier && rawTier.toLowerCase() !== 'free' && rawTier.toLowerCase() !== 'none';
+                              const isActive = status === 'active' || (isPaid && status !== 'canceled' && status !== 'cancelled' && status !== 'expired');
+                              const planDisplayName = rawTier.charAt(0).toUpperCase() + rawTier.slice(1);
+                              const periodEnd = u.subscription?.currentPeriodEnd;
+
+                              let badgeBg = 'rgba(100, 116, 139, 0.12)';
+                              let badgeColor = '#64748b';
+                              let badgeBorder = 'rgba(100, 116, 139, 0.25)';
+                              let icon = <CreditCard size={13} color="#64748b" />;
+
+                              if (rawTier.toLowerCase().includes('gold')) {
+                                badgeBg = 'linear-gradient(135deg, rgba(245, 158, 11, 0.18) 0%, rgba(217, 119, 6, 0.26) 100%)';
+                                badgeColor = '#D97706';
+                                badgeBorder = 'rgba(245, 158, 11, 0.45)';
+                                icon = <Crown size={13} color="#D97706" />;
+                              } else if (rawTier.toLowerCase().includes('platinum') || rawTier.toLowerCase().includes('vip')) {
+                                badgeBg = 'linear-gradient(135deg, rgba(139, 92, 246, 0.18) 0%, rgba(99, 102, 241, 0.26) 100%)';
+                                badgeColor = '#8B5CF6';
+                                badgeBorder = 'rgba(139, 92, 246, 0.45)';
+                                icon = <Sparkles size={13} color="#8B5CF6" />;
+                              } else if (rawTier.toLowerCase().includes('silver')) {
+                                badgeBg = 'linear-gradient(135deg, rgba(148, 163, 184, 0.18) 0%, rgba(100, 116, 139, 0.26) 100%)';
+                                badgeColor = '#64748B';
+                                badgeBorder = 'rgba(148, 163, 184, 0.45)';
+                                icon = <Award size={13} color="#64748B" />;
+                              } else if (isPaid) {
+                                badgeBg = 'linear-gradient(135deg, rgba(254, 60, 114, 0.15) 0%, rgba(225, 29, 72, 0.25) 100%)';
+                                badgeColor = '#fe3c72';
+                                badgeBorder = 'rgba(254, 60, 114, 0.4)';
+                                icon = <Zap size={13} color="#fe3c72" />;
+                              }
+
+                              return (
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                                  <div
+                                    onClick={() => handleViewUserSubscription(u)}
+                                    title="Click to view subscription details"
+                                    style={{
+                                      display: 'inline-flex',
+                                      alignItems: 'center',
+                                      gap: '6px',
+                                      padding: '4px 10px',
+                                      borderRadius: '20px',
+                                      fontSize: '12px',
+                                      fontWeight: '600',
+                                      background: badgeBg,
+                                      color: badgeColor,
+                                      border: `1px solid ${badgeBorder}`,
+                                      cursor: 'pointer',
+                                      width: 'fit-content',
+                                      transition: 'all 0.2s ease',
+                                    }}
+                                  >
+                                    {icon}
+                                    <span>{planDisplayName}</span>
+                                    {isPaid && (
+                                      <span
+                                        style={{
+                                          width: '7px',
+                                          height: '7px',
+                                          borderRadius: '50%',
+                                          backgroundColor: isActive ? '#10B981' : '#EF4444',
+                                          display: 'inline-block',
+                                          marginLeft: '2px',
+                                        }}
+                                        title={isActive ? 'Active subscription' : `Status: ${status}`}
+                                      />
+                                    )}
+                                  </div>
+
+                                  <div style={{ fontSize: '11px', color: isPaid ? (isActive ? '#10B981' : '#94a3b8') : '#94a3b8', fontWeight: '500' }}>
+                                    {isPaid ? (
+                                      <>
+                                        <span>{isActive ? '● Active' : `● ${status}`}</span>
+                                        {periodEnd && (
+                                          <span style={{ color: '#64748b', marginLeft: '4px' }}>
+                                            (Exp: {new Date(periodEnd).toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' })})
+                                          </span>
+                                        )}
+                                      </>
+                                    ) : (
+                                      <span>Free Tier</span>
+                                    )}
+                                  </div>
+                                </div>
+                              );
+                            })()}
+                          </td>
+                          <td>
                             {!!u.isOnline ? (
                               <span className="status-chip active" style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
                                 <CheckCircle2 size={12} />
@@ -609,21 +959,59 @@ export const Dashboard = ({ adminUser, onLogout }) => {
                             )}
                           </td>
                           <td>
+                            {u.isActive !== false ? (
+                              <span className="status-chip active" style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', backgroundColor: 'rgba(16, 185, 129, 0.15)', color: '#10B981', borderColor: 'rgba(16, 185, 129, 0.3)' }}>
+                                <CheckCircle2 size={12} />
+                                <span>Active</span>
+                              </span>
+                            ) : (
+                              <span className="status-chip offline" style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', backgroundColor: 'rgba(239, 68, 68, 0.15)', color: '#EF4444', borderColor: 'rgba(239, 68, 68, 0.3)' }}>
+                                <XCircle size={12} />
+                                <span>Inactive</span>
+                              </span>
+                            )}
+                          </td>
+                          <td>
                             {u.createdAt ? new Date(u.createdAt).toLocaleDateString('en-US', {
                               year: 'numeric',
                               month: 'short',
                               day: 'numeric'
                             }) : 'N/A'}
                           </td>
-                          <td>
-                            <button 
-                              className="btn-table-report"
-                              onClick={() => openReportModalForUser(u)}
-                              title="Submit report form for this user"
-                            >
-                              <Flag size={13} />
-                              <span>Report User</span>
-                            </button>
+                          <td className="actions-table-cell">
+                            <div className="table-actions-group">
+                              {u.isActive !== false ? (
+                                <button 
+                                  type="button"
+                                  className="btn-table-action btn-table-deactivate"
+                                  onClick={() => handleOpenStatusModal(u, false)}
+                                  title="Deactivate user and block from exploring the app"
+                                >
+                                  <UserX size={14} className="action-btn-icon" />
+                                  <span>Deactivate</span>
+                                </button>
+                              ) : (
+                                <button 
+                                  type="button"
+                                  className="btn-table-action btn-table-activate"
+                                  onClick={() => handleOpenStatusModal(u, true)}
+                                  title="Activate this user account to allow app access"
+                                >
+                                  <UserCheck size={14} className="action-btn-icon" />
+                                  <span>Activate</span>
+                                </button>
+                              )}
+
+                              <button 
+                                type="button"
+                                className="btn-table-action btn-table-report"
+                                onClick={() => openReportModalForUser(u)}
+                                title="Submit report form for this user"
+                              >
+                                <Flag size={14} className="action-btn-icon" />
+                                <span>Report</span>
+                              </button>
+                            </div>
                           </td>
                         </tr>
                       );
@@ -692,7 +1080,8 @@ export const Dashboard = ({ adminUser, onLogout }) => {
                   </div>
                 </div>
               </div>
-            )}
+            </>
+          )}
           </div>
         )}
 
@@ -882,7 +1271,7 @@ export const Dashboard = ({ adminUser, onLogout }) => {
                         <button 
                           type="button"
                           className="btn-create-report btn-card-submit-report"
-                          onClick={() => openReportModalForUser(reported)}
+                          onClick={() => openReportModalForUser(reported, report._id)}
                           title="Submit Reported User Form for this user"
                         >
                           <PlusCircle size={14} />
@@ -1137,8 +1526,280 @@ export const Dashboard = ({ adminUser, onLogout }) => {
         </div>
       )}
 
+      {/* Account Status (Activate / Deactivate) Confirmation Modal */}
+      {statusModal.open && statusModal.user && (
+        <div className="modal-backdrop">
+          <div className="modal-content animate-scale-up" style={{ maxWidth: '440px' }}>
+            <div className="modal-header">
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                {statusModal.newStatus ? (
+                  <div style={{ padding: '8px', borderRadius: '50%', backgroundColor: 'rgba(16, 185, 129, 0.15)', color: '#10B981' }}>
+                    <UserCheck size={22} />
+                  </div>
+                ) : (
+                  <div style={{ padding: '8px', borderRadius: '50%', backgroundColor: 'rgba(239, 68, 68, 0.15)', color: '#EF4444' }}>
+                    <UserX size={22} />
+                  </div>
+                )}
+                <h3 className="modal-title" style={{ fontSize: '18px', fontWeight: '700' }}>
+                  {statusModal.newStatus ? 'Activate User Account' : 'Deactivate User Account'}
+                </h3>
+              </div>
+              <button 
+                className="close-btn" 
+                onClick={() => setStatusModal({ open: false, user: null, newStatus: false, reason: '', submitting: false })}
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <div className="modal-body" style={{ padding: '16px 0' }}>
+              <p style={{ color: '#1e293b', fontSize: '14px', lineHeight: '1.5', marginBottom: '14px' }}>
+                {statusModal.newStatus ? (
+                  <>Are you sure you want to <strong>activate</strong> the account for <span style={{ color: '#ff4d6d', fontWeight: 'bold' }}>{statusModal.user.name || statusModal.user.firstName || 'this user'}</span>? They will be allowed to log in and explore the app again.</>
+                ) : (
+                  <>Are you sure you want to <strong>deactivate</strong> the account for <span style={{ color: '#ff4d6d', fontWeight: 'bold' }}>{statusModal.user.name || statusModal.user.firstName || 'this user'}</span>? The user will be immediately logged out and blocked from exploring profiles, chats, or swiping.</>
+                )}
+              </p>
+
+              {!statusModal.newStatus && (
+                <div className="form-group" style={{ marginBottom: '12px' }}>
+                  <label className="form-label" style={{ fontSize: '13px', fontWeight: '600', color: '#475569' }}>Deactivation Reason (Optional):</label>
+                  <input
+                    type="text"
+                    className="form-input"
+                    placeholder="e.g. Terms violation, fake profile, reported multiple times"
+                    value={statusModal.reason}
+                    onChange={(e) => setStatusModal((prev) => ({ ...prev, reason: e.target.value }))}
+                    style={{ width: '100%', marginTop: '6px' }}
+                  />
+                </div>
+              )}
+            </div>
+
+            <div className="modal-footer" style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
+              <button
+                type="button"
+                className="btn-secondary-cancel"
+                onClick={() => setStatusModal({ open: false, user: null, newStatus: false, reason: '', submitting: false })}
+                disabled={statusModal.submitting}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="btn-primary-submit"
+                onClick={handleConfirmStatusChange}
+                disabled={statusModal.submitting}
+                style={{
+                  backgroundColor: statusModal.newStatus ? '#10B981' : '#EF4444',
+                  borderColor: statusModal.newStatus ? '#10B981' : '#EF4444',
+                }}
+              >
+                {statusModal.submitting
+                  ? 'Saving...'
+                  : statusModal.newStatus
+                  ? 'Confirm Activation'
+                  : 'Confirm Deactivation'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* User Subscription Details Modal */}
+      {subscriptionModal.open && (
+        <div className="modal-backdrop">
+          <div className="modal-content animate-scale-up" style={{ maxWidth: '560px', width: '95%' }}>
+            <div className="modal-header">
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <div style={{ padding: '8px', borderRadius: '50%', backgroundColor: 'rgba(254, 60, 114, 0.15)', color: '#fe3c72' }}>
+                  <Crown size={22} />
+                </div>
+                <div>
+                  <h3 className="modal-title" style={{ fontSize: '18px', fontWeight: '700', margin: 0 }}>
+                    User Subscription Details
+                  </h3>
+                  <div style={{ fontSize: '12px', color: '#64748b', marginTop: '2px' }}>
+                    {subscriptionModal.user?.name || subscriptionModal.user?.firstName || 'User'} ({subscriptionModal.user?.email || 'No email'})
+                  </div>
+                </div>
+              </div>
+              <button 
+                className="close-btn" 
+                onClick={() => setSubscriptionModal({ open: false, user: null, loading: false, details: null })}
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <div className="modal-body" style={{ padding: '16px 0', maxHeight: '70vh', overflowY: 'auto' }}>
+              {subscriptionModal.loading ? (
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '30px' }}>
+                  <span className="spinner" style={{ borderColor: 'rgba(254,60,114,0.3)', borderTopColor: '#fe3c72', width: '32px', height: '32px' }}></span>
+                  <span style={{ marginTop: '12px', color: '#64748b', fontSize: '13px' }}>Loading subscription details...</span>
+                </div>
+              ) : (() => {
+                const subData = subscriptionModal.details;
+                const activeSub = subData?.activeSubscription || subscriptionModal.user?.subscription;
+                const planDetails = subData?.planDetails;
+                const planName = planDetails?.name || subData?.user?.subscriptionTier || activeSub?.planType || subscriptionModal.user?.subscriptionPlanName || subscriptionModal.user?.subscriptionTier || 'Free Plan';
+                const status = (activeSub?.status || subData?.user?.subscriptionStatus || subscriptionModal.user?.subscriptionStatus || 'inactive').toLowerCase();
+                const isActive = status === 'active';
+                const price = planDetails ? `${planDetails.price} ${planDetails.currency || 'USD'}` : (activeSub?.planType && activeSub.planType !== 'Free' ? 'Paid Plan' : 'Free ($0.00)');
+                const cycle = planDetails?.billingCycle ? (planDetails.billingCycle.charAt(0).toUpperCase() + planDetails.billingCycle.slice(1)) : 'Monthly';
+
+                return (
+                  <div>
+                    {/* Plan Highlight Banner */}
+                    <div style={{
+                      background: 'linear-gradient(135deg, rgba(254, 60, 114, 0.08) 0%, rgba(245, 158, 11, 0.08) 100%)',
+                      border: '1px solid rgba(254, 60, 114, 0.25)',
+                      borderRadius: '12px',
+                      padding: '16px',
+                      marginBottom: '16px',
+                    }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <div>
+                          <div style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.5px', color: '#64748b', fontWeight: '700' }}>
+                            Subscribed Package
+                          </div>
+                          <div style={{ fontSize: '20px', fontWeight: '800', color: '#1e293b', marginTop: '2px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <Crown size={20} color="#f59e0b" />
+                            <span>{planName}</span>
+                          </div>
+                        </div>
+
+                        <span style={{
+                          padding: '5px 12px',
+                          borderRadius: '20px',
+                          fontSize: '12px',
+                          fontWeight: '700',
+                          backgroundColor: isActive ? 'rgba(16, 185, 129, 0.15)' : 'rgba(239, 68, 68, 0.15)',
+                          color: isActive ? '#10B981' : '#EF4444',
+                          border: `1px solid ${isActive ? 'rgba(16, 185, 129, 0.3)' : 'rgba(239, 68, 68, 0.3)'}`,
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '5px',
+                        }}>
+                          {isActive ? <CheckCircle2 size={13} /> : <XCircle size={13} />}
+                          <span>{isActive ? 'Active Subscription' : (status === 'canceled' ? 'Canceled' : 'Inactive')}</span>
+                        </span>
+                      </div>
+
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '12px', marginTop: '14px', paddingTop: '12px', borderTop: '1px solid rgba(226, 232, 240, 0.8)' }}>
+                        <div>
+                          <span style={{ fontSize: '11px', color: '#64748b', display: 'block' }}>Pricing & Cycle</span>
+                          <span style={{ fontSize: '13px', fontWeight: '700', color: '#0f172a' }}>{price} / {cycle}</span>
+                        </div>
+                        <div>
+                          <span style={{ fontSize: '11px', color: '#64748b', display: 'block' }}>Period Start</span>
+                          <span style={{ fontSize: '13px', fontWeight: '600', color: '#0f172a' }}>
+                            {activeSub?.currentPeriodStart ? new Date(activeSub.currentPeriodStart).toLocaleDateString() : 'N/A'}
+                          </span>
+                        </div>
+                        <div>
+                          <span style={{ fontSize: '11px', color: '#64748b', display: 'block' }}>Renewal / Expiry</span>
+                          <span style={{ fontSize: '13px', fontWeight: '600', color: '#0f172a' }}>
+                            {activeSub?.currentPeriodEnd ? new Date(activeSub.currentPeriodEnd).toLocaleDateString() : 'N/A'}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Technical / Gateway Identifiers */}
+                    {(activeSub?.stripeCustomerId || activeSub?.stripeSubscriptionId || subscriptionModal.user?.stripeCustomerId) && (
+                      <div style={{ background: '#f8fafc', borderRadius: '10px', padding: '12px 14px', marginBottom: '14px', border: '1px solid #e2e8f0', fontSize: '12px' }}>
+                        <div style={{ fontWeight: '700', color: '#475569', marginBottom: '6px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <CreditCard size={14} color="#64748b" />
+                          <span>Payment Gateway Details (Stripe)</span>
+                        </div>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', color: '#64748b' }}>
+                          {activeSub?.stripeCustomerId && (
+                            <div>Customer ID: <code style={{ backgroundColor: '#e2e8f0', padding: '2px 5px', borderRadius: '4px', color: '#1e293b' }}>{activeSub.stripeCustomerId}</code></div>
+                          )}
+                          {activeSub?.stripeSubscriptionId && (
+                            <div>Subscription ID: <code style={{ backgroundColor: '#e2e8f0', padding: '2px 5px', borderRadius: '4px', color: '#1e293b' }}>{activeSub.stripeSubscriptionId}</code></div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Plan Included Features */}
+                    {planDetails?.features && planDetails.features.length > 0 && (
+                      <div style={{ marginBottom: '14px' }}>
+                        <div style={{ fontSize: '13px', fontWeight: '700', color: '#1e293b', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <Sparkles size={14} color="#f59e0b" />
+                          <span>Features Included in Plan</span>
+                        </div>
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                          {planDetails.features.map((f, i) => (
+                            <span key={i} style={{ fontSize: '11px', fontWeight: '600', padding: '4px 8px', borderRadius: '6px', backgroundColor: 'rgba(59, 130, 246, 0.1)', color: '#2563EB', border: '1px solid rgba(59, 130, 246, 0.2)' }}>
+                              ✓ {f.featureKey || f.name || f}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Subscription History */}
+                    {subData?.subscriptionHistory && subData.subscriptionHistory.length > 0 && (
+                      <div>
+                        <div style={{ fontSize: '13px', fontWeight: '700', color: '#1e293b', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <Clock size={14} color="#64748b" />
+                          <span>Subscription History ({subData.subscriptionHistory.length})</span>
+                        </div>
+                        <div style={{ border: '1px solid #e2e8f0', borderRadius: '8px', overflow: 'hidden' }}>
+                          <table style={{ width: '100%', fontSize: '12px', borderCollapse: 'collapse', textAlign: 'left' }}>
+                            <thead style={{ backgroundColor: '#f1f5f9', color: '#475569' }}>
+                              <tr>
+                                <th style={{ padding: '6px 10px' }}>Plan</th>
+                                <th style={{ padding: '6px 10px' }}>Status</th>
+                                <th style={{ padding: '6px 10px' }}>Date</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {subData.subscriptionHistory.map((hist, hIdx) => (
+                                <tr key={hIdx} style={{ borderTop: '1px solid #f1f5f9' }}>
+                                  <td style={{ padding: '6px 10px', fontWeight: '600' }}>{hist.planType}</td>
+                                  <td style={{ padding: '6px 10px' }}>
+                                    <span style={{ color: hist.status === 'active' ? '#10b981' : '#64748b' }}>
+                                      {hist.status}
+                                    </span>
+                                  </td>
+                                  <td style={{ padding: '6px 10px', color: '#64748b' }}>
+                                    {hist.createdAt ? new Date(hist.createdAt).toLocaleDateString() : 'N/A'}
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
+            </div>
+
+            <div className="modal-footer" style={{ display: 'flex', justifyContent: 'flex-end', paddingTop: '12px', borderTop: '1px solid #f1f5f9' }}>
+              <button
+                type="button"
+                className="btn-primary-submit"
+                onClick={() => setSubscriptionModal({ open: false, user: null, loading: false, details: null })}
+                style={{ padding: '8px 20px' }}
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      </div>
     </div>
   );
 };
 
 export default Dashboard;
+

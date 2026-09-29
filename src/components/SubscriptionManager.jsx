@@ -296,7 +296,7 @@ export const SubscriptionManager = () => {
             }}
           >
             <RefreshCw size={16} className={loading ? 'spin-icon' : ''} />
-            <span>Sync</span>
+            <span>Refresh</span>
           </button>
 
           <button
@@ -330,231 +330,231 @@ export const SubscriptionManager = () => {
 
       {/* PLANS GRID */}
       <div className="plans-grid-container">
-          {loading ? (
-            <div style={{ padding: '40px', textAlign: 'center', color: '#64748b' }}>
-              <RefreshCw size={24} className="spin-icon" style={{ margin: '0 auto 12px' }} />
-              <div>Loading subscription plans...</div>
-            </div>
-          ) : plans.length === 0 ? (
-            <div style={{ padding: '60px', textAlign: 'center', backgroundColor: '#fff', borderRadius: '16px', border: '1px dashed #cbd5e1' }}>
-              <CreditCard size={48} color="#94a3b8" style={{ margin: '0 auto 16px' }} />
-              <h3 style={{ fontSize: '18px', color: '#1e293b' }}>No subscription plans found</h3>
-              <p style={{ color: '#64748b', marginTop: '6px', marginBottom: '20px' }}>Create your first plan to sync with Stripe and mobile app users.</p>
-              <button onClick={openCreatePlanModal} style={{ padding: '10px 20px', backgroundColor: '#ff4d6d', color: '#fff', border: 'none', borderRadius: '8px', fontWeight: 600, cursor: 'pointer' }}>
-                + Create Plan Now
-              </button>
-            </div>
-          ) : (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '20px' }}>
-              {plans.map((plan) => {
-                const swipeFeat = plan.features?.find((f) => f.featureKey === 'SWIPES');
-                const superFeat = plan.features?.find((f) => f.featureKey === 'SUPER_LIKES');
-                const searchFeat = plan.features?.find((f) => f.featureKey === 'ADVANCED_SEARCH');
-                const likesFeat = plan.features?.find((f) => f.featureKey === 'SEE_WHO_LIKED_YOU');
+        {loading ? (
+          <div style={{ padding: '40px', textAlign: 'center', color: '#64748b' }}>
+            <RefreshCw size={24} className="spin-icon" style={{ margin: '0 auto 12px' }} />
+            <div>Loading subscription plans...</div>
+          </div>
+        ) : plans.length === 0 ? (
+          <div style={{ padding: '60px', textAlign: 'center', backgroundColor: '#fff', borderRadius: '16px', border: '1px dashed #cbd5e1' }}>
+            <CreditCard size={48} color="#94a3b8" style={{ margin: '0 auto 16px' }} />
+            <h3 style={{ fontSize: '18px', color: '#1e293b' }}>No subscription plans found</h3>
+            <p style={{ color: '#64748b', marginTop: '6px', marginBottom: '20px' }}>Create your first plan to sync with Stripe and mobile app users.</p>
+            <button onClick={openCreatePlanModal} style={{ padding: '10px 20px', backgroundColor: '#ff4d6d', color: '#fff', border: 'none', borderRadius: '8px', fontWeight: 600, cursor: 'pointer' }}>
+              + Create Plan Now
+            </button>
+          </div>
+        ) : (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '20px' }}>
+            {plans.map((plan) => {
+              const swipeFeat = plan.features?.find((f) => f.featureKey === 'SWIPES');
+              const superFeat = plan.features?.find((f) => f.featureKey === 'SUPER_LIKES');
+              const searchFeat = plan.features?.find((f) => f.featureKey === 'ADVANCED_SEARCH');
+              const likesFeat = plan.features?.find((f) => f.featureKey === 'SEE_WHO_LIKED_YOU');
 
-                const isGoldTier = plan.planKey?.toUpperCase() === 'GOLD';
-                const isPremiumTier = plan.planKey?.toUpperCase() === 'PREMIUM';
+              const isGoldTier = plan.planKey?.toUpperCase() === 'GOLD';
+              const isPremiumTier = plan.planKey?.toUpperCase() === 'PREMIUM';
 
-                return (
-                  <div
-                    key={plan._id}
-                    style={{
-                      backgroundColor: '#ffffff',
-                      borderRadius: '16px',
-                      border: isGoldTier ? '2px solid #fbbf24' : isPremiumTier ? '2px solid #ff4d6d' : '1px solid #e2e8f0',
-                      boxShadow: '0 4px 16px rgba(0, 0, 0, 0.05)',
-                      padding: '24px',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      justifyContent: 'space-between',
-                      position: 'relative',
-                      opacity: 1,
-                    }}
-                  >
-                    {/* Top Card Badges */}
-                    <div>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
-                        <div>
-                          <span style={{ fontSize: '12px', fontWeight: 700, textTransform: 'uppercase', color: '#64748b', letterSpacing: '0.5px' }}>
-                            {plan.planKey} TIER
-                          </span>
-                          <h3 style={{ fontSize: '20px', fontWeight: 800, color: '#0f172a', marginTop: '2px' }}>
-                            {plan.name}
-                          </h3>
-                        </div>
-
-                        {plan.highlightBadge && (
-                          <span
-                            style={{
-                              backgroundColor: isGoldTier ? '#fef3c7' : '#fee2e2',
-                              color: isGoldTier ? '#92400e' : '#b91c1c',
-                              fontSize: '11px',
-                              fontWeight: 800,
-                              padding: '4px 8px',
-                              borderRadius: '6px',
-                              letterSpacing: '0.5px',
-                            }}
-                          >
-                            {plan.highlightBadge}
-                          </span>
-                        )}
+              return (
+                <div
+                  key={plan._id}
+                  style={{
+                    backgroundColor: '#ffffff',
+                    borderRadius: '16px',
+                    border: isGoldTier ? '2px solid #fbbf24' : isPremiumTier ? '2px solid #ff4d6d' : '1px solid #e2e8f0',
+                    boxShadow: '0 4px 16px rgba(0, 0, 0, 0.05)',
+                    padding: '24px',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    justifyContent: 'space-between',
+                    position: 'relative',
+                    opacity: 1,
+                  }}
+                >
+                  {/* Top Card Badges */}
+                  <div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
+                      <div>
+                        <span style={{ fontSize: '12px', fontWeight: 700, textTransform: 'uppercase', color: '#64748b', letterSpacing: '0.5px' }}>
+                          {plan.planKey} TIER
+                        </span>
+                        <h3 style={{ fontSize: '20px', fontWeight: 800, color: '#0f172a', marginTop: '2px' }}>
+                          {plan.name}
+                        </h3>
                       </div>
 
-                      {/* Price Display */}
-                      <div style={{ margin: '16px 0', paddingBottom: '16px', borderBottom: '1px solid #f1f5f9' }}>
-                        <div style={{ display: 'flex', alignItems: 'baseline', gap: '4px' }}>
-                          <span style={{ fontSize: '32px', fontWeight: 800, color: '#0f172a' }}>
-                            ${plan.price}
-                          </span>
-                          <span style={{ fontSize: '14px', fontWeight: 600, color: '#64748b' }}>
-                            USD / {plan.billingCycle || 'month'}
-                          </span>
-                        </div>
-                        {plan.description && (
-                          <p style={{ fontSize: '13px', color: '#64748b', marginTop: '6px' }}>{plan.description}</p>
-                        )}
+                      {plan.highlightBadge && (
+                        <span
+                          style={{
+                            backgroundColor: isGoldTier ? '#fef3c7' : '#fee2e2',
+                            color: isGoldTier ? '#92400e' : '#b91c1c',
+                            fontSize: '11px',
+                            fontWeight: 800,
+                            padding: '4px 8px',
+                            borderRadius: '6px',
+                            letterSpacing: '0.5px',
+                          }}
+                        >
+                          {plan.highlightBadge}
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Price Display */}
+                    <div style={{ margin: '16px 0', paddingBottom: '16px', borderBottom: '1px solid #f1f5f9' }}>
+                      <div style={{ display: 'flex', alignItems: 'baseline', gap: '4px' }}>
+                        <span style={{ fontSize: '32px', fontWeight: 800, color: '#0f172a' }}>
+                          ${plan.price}
+                        </span>
+                        <span style={{ fontSize: '14px', fontWeight: 600, color: '#64748b' }}>
+                          USD / {plan.billingCycle || 'month'}
+                        </span>
+                      </div>
+                      {plan.description && (
+                        <p style={{ fontSize: '13px', color: '#64748b', marginTop: '6px' }}>{plan.description}</p>
+                      )}
+                    </div>
+
+                    {/* Configured Feature Limits Matrix - ONLY render added/allowed features */}
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '20px' }}>
+                      <div style={{ fontSize: '12px', fontWeight: 700, color: '#475569', textTransform: 'uppercase' }}>
+                        Included Features:
                       </div>
 
-                      {/* Configured Feature Limits Matrix - ONLY render added/allowed features */}
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '20px' }}>
-                        <div style={{ fontSize: '12px', fontWeight: 700, color: '#475569', textTransform: 'uppercase' }}>
-                          Included Features:
+                      {/* 1. Swipe Cards */}
+                      {swipeFeat && swipeFeat.isAllowed && (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13.5px', color: '#1e293b' }}>
+                          <Flame size={16} color="#ff4d6d" />
+                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
+                            <strong>Swipe Cards:</strong>{' '}
+                            {swipeFeat.limitValue === -1 ? (
+                              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', color: '#059669', fontWeight: 600 }}>
+                                <CheckCircle2 size={13} color="#059669" /> Unlimited Swipes
+                              </span>
+                            ) : (
+                              <span>{swipeFeat.limitValue} Swipes / day</span>
+                            )}
+                          </span>
                         </div>
+                      )}
 
-                        {/* 1. Swipe Cards */}
-                        {swipeFeat && swipeFeat.isAllowed && (
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13.5px', color: '#1e293b' }}>
-                            <Flame size={16} color="#ff4d6d" />
-                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
-                              <strong>Swipe Cards:</strong>{' '}
-                              {swipeFeat.limitValue === -1 ? (
-                                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', color: '#059669', fontWeight: 600 }}>
-                                  <CheckCircle2 size={13} color="#059669" /> Unlimited Swipes
-                                </span>
-                              ) : (
-                                <span>{swipeFeat.limitValue} Swipes / day</span>
-                              )}
-                            </span>
-                          </div>
-                        )}
+                      {/* 2. Super Likes */}
+                      {superFeat && superFeat.isAllowed && superFeat.limitValue > 0 && (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13.5px', color: '#1e293b' }}>
+                          <Star size={16} color="#fbbf24" fill="#fbbf24" />
+                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
+                            <strong>Super Likes:</strong>
+                            <Star size={13} color="#fbbf24" fill="#fbbf24" />
+                            <span>{superFeat.limitValue} Super Likes / day</span>
+                          </span>
+                        </div>
+                      )}
 
-                        {/* 2. Super Likes */}
-                        {superFeat && superFeat.isAllowed && superFeat.limitValue > 0 && (
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13.5px', color: '#1e293b' }}>
-                            <Star size={16} color="#fbbf24" fill="#fbbf24" />
-                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
-                              <strong>Super Likes:</strong>
-                              <Star size={13} color="#fbbf24" fill="#fbbf24" />
-                              <span>{superFeat.limitValue} Super Likes / day</span>
-                            </span>
-                          </div>
-                        )}
+                      {/* 3. Search Functionality */}
+                      {searchFeat && searchFeat.isAllowed && (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13.5px', color: '#1e293b' }}>
+                          <Search size={16} color="#3b82f6" />
+                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
+                            <strong>Search Filters:</strong>
+                            <Unlock size={13} color="#3b82f6" />
+                            <span>All Filters Unlocked</span>
+                          </span>
+                        </div>
+                      )}
 
-                        {/* 3. Search Functionality */}
-                        {searchFeat && searchFeat.isAllowed && (
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13.5px', color: '#1e293b' }}>
-                            <Search size={16} color="#3b82f6" />
-                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
-                              <strong>Search Filters:</strong>
-                              <Unlock size={13} color="#3b82f6" />
-                              <span>All Filters Unlocked</span>
-                            </span>
-                          </div>
-                        )}
+                      {/* 4. Likes (See Who Liked You) */}
+                      {likesFeat && likesFeat.isAllowed && (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13.5px', color: '#1e293b' }}>
+                          <Heart size={16} color="#ec4899" fill="#ec4899" />
+                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
+                            <strong>Who Liked You:</strong>
+                            <Eye size={13} color="#ec4899" />
+                            <span>Unblurred & Revealed</span>
+                          </span>
+                        </div>
+                      )}
 
-                        {/* 4. Likes (See Who Liked You) */}
-                        {likesFeat && likesFeat.isAllowed && (
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13.5px', color: '#1e293b' }}>
-                            <Heart size={16} color="#ec4899" fill="#ec4899" />
-                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
-                              <strong>Who Liked You:</strong>
-                              <Eye size={13} color="#ec4899" />
-                              <span>Unblurred & Revealed</span>
-                            </span>
-                          </div>
-                        )}
-
-                        {/* Fallback if no features were added */}
-                        {(!swipeFeat || !swipeFeat.isAllowed) &&
-                         (!superFeat || !superFeat.isAllowed || superFeat.limitValue <= 0) &&
-                         (!searchFeat || !searchFeat.isAllowed) &&
-                         (!likesFeat || !likesFeat.isAllowed) && (
+                      {/* Fallback if no features were added */}
+                      {(!swipeFeat || !swipeFeat.isAllowed) &&
+                        (!superFeat || !superFeat.isAllowed || superFeat.limitValue <= 0) &&
+                        (!searchFeat || !searchFeat.isAllowed) &&
+                        (!likesFeat || !likesFeat.isAllowed) && (
                           <div style={{ fontSize: '13px', color: '#94a3b8', fontStyle: 'italic' }}>
                             No additional features included in this tier.
                           </div>
                         )}
-                      </div>
-
-                      {/* Stripe Sync Status */}
-                      {plan.stripePriceId ? (
-                        <div style={{ fontSize: '11px', color: '#059669', backgroundColor: '#ecfdf5', padding: '6px 10px', borderRadius: '6px', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                          <CheckCircle2 size={13} />
-                          <span>Synced with Stripe ({plan.stripePriceId})</span>
-                        </div>
-                      ) : (
-                        <div style={{ fontSize: '11px', color: '#6b7280', backgroundColor: '#f3f4f6', padding: '6px 10px', borderRadius: '6px', marginBottom: '16px' }}>
-                          {plan.price === 0 ? 'Free Plan (No Stripe needed)' : 'Custom / Offline Pricing'}
-                        </div>
-                      )}
                     </div>
 
-                    {/* Card Action Controls */}
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '16px', borderTop: '1px solid #f1f5f9' }}>
-                      <button
-                        onClick={() => handleTogglePlanActive(plan)}
-                        style={{
-                          background: 'none',
-                          border: 'none',
-                          cursor: 'pointer',
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '6px',
-                          fontSize: '13px',
-                          fontWeight: 600,
-                          color: plan.isActive ? '#059669' : '#475569',
-                        }}
-                      >
-                        {plan.isActive ? <ToggleRight size={22} color="#059669" /> : <ToggleLeft size={22} color="#64748b" />}
-                        <span>{plan.isActive ? 'Active in App' : 'Hidden'}</span>
-                      </button>
-
-                      <div style={{ display: 'flex', gap: '8px' }}>
-                        <button
-                          onClick={() => openEditPlanModal(plan)}
-                          style={{
-                            padding: '6px 10px',
-                            borderRadius: '6px',
-                            border: '1px solid #cbd5e1',
-                            backgroundColor: '#f8fafc',
-                            cursor: 'pointer',
-                            color: '#334155',
-                          }}
-                          title="Edit Plan"
-                        >
-                          <Edit size={14} />
-                        </button>
-                        <button
-                          onClick={() => handleDeletePlan(plan)}
-                          style={{
-                            padding: '6px 10px',
-                            borderRadius: '6px',
-                            border: '1px solid #fecaca',
-                            backgroundColor: '#fef2f2',
-                            cursor: 'pointer',
-                            color: '#ef4444',
-                          }}
-                          title="Deactivate Plan"
-                        >
-                          <Trash2 size={14} />
-                        </button>
+                    {/* Stripe Sync Status */}
+                    {plan.stripePriceId ? (
+                      <div style={{ fontSize: '11px', color: '#059669', backgroundColor: '#ecfdf5', padding: '6px 10px', borderRadius: '6px', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <CheckCircle2 size={13} />
+                        <span>Synced with Stripe ({plan.stripePriceId})</span>
                       </div>
+                    ) : (
+                      <div style={{ fontSize: '11px', color: '#6b7280', backgroundColor: '#f3f4f6', padding: '6px 10px', borderRadius: '6px', marginBottom: '16px' }}>
+                        {plan.price === 0 ? 'Free Plan (No Stripe needed)' : 'Custom / Offline Pricing'}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Card Action Controls */}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '16px', borderTop: '1px solid #f1f5f9' }}>
+                    <button
+                      onClick={() => handleTogglePlanActive(plan)}
+                      style={{
+                        background: 'none',
+                        border: 'none',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        fontSize: '13px',
+                        fontWeight: 600,
+                        color: plan.isActive ? '#059669' : '#475569',
+                      }}
+                    >
+                      {plan.isActive ? <ToggleRight size={22} color="#059669" /> : <ToggleLeft size={22} color="#64748b" />}
+                      <span>{plan.isActive ? 'Active in App' : 'Hidden'}</span>
+                    </button>
+
+                    <div style={{ display: 'flex', gap: '8px' }}>
+                      <button
+                        onClick={() => openEditPlanModal(plan)}
+                        style={{
+                          padding: '6px 10px',
+                          borderRadius: '6px',
+                          border: '1px solid #cbd5e1',
+                          backgroundColor: '#f8fafc',
+                          cursor: 'pointer',
+                          color: '#334155',
+                        }}
+                        title="Edit Plan"
+                      >
+                        <Edit size={14} />
+                      </button>
+                      <button
+                        onClick={() => handleDeletePlan(plan)}
+                        style={{
+                          padding: '6px 10px',
+                          borderRadius: '6px',
+                          border: '1px solid #fecaca',
+                          backgroundColor: '#fef2f2',
+                          cursor: 'pointer',
+                          color: '#ef4444',
+                        }}
+                        title="Deactivate Plan"
+                      >
+                        <Trash2 size={14} />
+                      </button>
                     </div>
                   </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
 
       {/* MODAL 1: CREATE / EDIT PLAN FORM */}
       {showPlanModal && (

@@ -57,6 +57,11 @@ export const warnUser = async (warningData) => {
   return response.data;
 };
 
+export const updateUserStatus = async (userId, isActive, reason = '') => {
+  const response = await api.put(`/users/${userId}/status`, { isActive, reason });
+  return response.data;
+};
+
 // --- Dynamic Subscription Plans APIs ---
 export const fetchPlans = async (isActive) => {
   const query = isActive !== undefined ? `?isActive=${isActive}&t=${Date.now()}` : `?t=${Date.now()}`;
@@ -97,6 +102,12 @@ export const updateFeature = async (id, featureData) => {
 
 export const deleteFeature = async (id, permanent = false) => {
   const response = await api.delete(`/features/${id}${permanent ? '?permanent=true' : ''}`);
+  return response.data;
+};
+
+// --- User Subscription Detail API ---
+export const fetchUserSubscription = async (userId) => {
+  const response = await api.get(`/users/${userId}/subscription?t=${Date.now()}`);
   return response.data;
 };
 
