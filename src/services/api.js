@@ -52,6 +52,22 @@ export const updateReportStatus = async (reportId, status) => {
   return response.data;
 };
 
+// --- Contact-Us User Reports APIs ---
+export const fetchContactReports = async () => {
+  const response = await api.get(`/contact-reports?t=${Date.now()}`);
+  return response.data;
+};
+
+export const updateContactReportStatus = async (reportId, status, adminNotes) => {
+  const response = await api.put(`/contact-reports/${reportId}`, { status, adminNotes });
+  return response.data;
+};
+
+export const deleteContactReport = async (reportId) => {
+  const response = await api.delete(`/contact-reports/${reportId}`);
+  return response.data;
+};
+
 export const warnUser = async (warningData) => {
   const response = await api.post('/warn-user', warningData);
   return response.data;

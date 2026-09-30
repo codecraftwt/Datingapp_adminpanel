@@ -32,18 +32,34 @@ import {
   Zap,
   DollarSign,
   Package,
+  MessageSquare,
+  Mail,
+  Trash2,
+  HelpCircle,
 } from 'lucide-react';
 import { TwoStringsLogo } from './TwoStringsLogo';
 import { SubscriptionManager } from './SubscriptionManager';
-import { fetchAdminUsers, fetchAdminReports, updateReportStatus, warnUser, updateUserStatus, fetchUserSubscription } from '../services/api';
+import { 
+  fetchAdminUsers, 
+  fetchAdminReports, 
+  updateReportStatus, 
+  warnUser, 
+  updateUserStatus, 
+  fetchUserSubscription,
+  fetchContactReports,
+  updateContactReportStatus as updateContactStatusApi,
+  deleteContactReport as deleteContactReportApi,
+} from '../services/api';
 
 export const Dashboard = ({ adminUser, onLogout }) => {
   const [activeTab, setActiveTab] = useState('users');
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [users, setUsers] = useState([]);
   const [reports, setReports] = useState([]);
+  const [contactReports, setContactReports] = useState([]);
   const [userAnalytics, setUserAnalytics] = useState(null);
   const [reportAnalytics, setReportAnalytics] = useState(null);
+  const [contactAnalytics, setContactAnalytics] = useState(null);
   const [loading, setLoading] = useState(true);
 
   // Filters & Search
@@ -52,6 +68,8 @@ export const Dashboard = ({ adminUser, onLogout }) => {
   const [accountStatusFilter, setAccountStatusFilter] = useState('all');
   const [subscriptionFilter, setSubscriptionFilter] = useState('all');
   const [reportStatusFilter, setReportStatusFilter] = useState('all');
+  const [contactSearch, setContactSearch] = useState('');
+  const [contactStatusFilter, setContactStatusFilter] = useState('all');
   const [actionMessage, setActionMessage] = useState('');
 
   // User Activate/Deactivate Status Modal State
@@ -310,27 +328,14 @@ export const Dashboard = ({ adminUser, onLogout }) => {
   const loadData = async (isBackground = false) => {
     if (!isBackground) setLoading(true);
     try {
-      const [userData, reportData] = await Promise.allSettled([
+      const [userData, reportData, contactData] = await Promise.allSettled([
         fetchAdminUsers(),
-        fetchAdminReports()
+        fetchAdminReports(),
+        fetchContactReports(),
       ]);
 
       if (userData.status === 'fulfilled' && userData.value.success) {
         const fetchedUsers = userData.value.users || [];
-        console.log(`[ADMIN DASHBOARD] Fetched ${fetchedUsers.length} registered users. Currently Online count:`, userData.value.analytics?.onlineUsers);
-        
-        const rinaUser = fetchedUsers.find((u) => u.email === 'rina@yopmail.com');
-        if (rinaUser) {
-          console.log(`[ADMIN DASHBOARD RINA STATUS LOG]`, {
-            name: rinaUser.name || rinaUser.firstName,
-            email: rinaUser.email,
-            isOnline: rinaUser.isOnline,
-            isLoggedIn: rinaUser.isLoggedIn,
-            lastSeen: rinaUser.lastSeen,
-            UI_STATUS: rinaUser.isOnline ? 'Online' : 'Offline'
-          });
-        }
-
         setUsers(fetchedUsers);
         setUserAnalytics(userData.value.analytics || null);
       }
@@ -339,10 +344,44 @@ export const Dashboard = ({ adminUser, onLogout }) => {
         setReports(reportData.value.reports || []);
         setReportAnalytics(reportData.value.analytics || null);
       }
+
+      if (contactData.status === 'fulfilled' && contactData.value.success) {
+        setContactReports(contactData.value.reports || []);
+        setContactAnalytics(contactData.value.analytics || null);
+      }
     } catch (err) {
       console.error('Error fetching admin data:', err);
     } finally {
       if (!isBackground) setLoading(false);
+    }
+  };
+
+  const handleUpdateContactStatus = async (contactId, newStatus) => {
+    try {
+      const res = await updateContactStatusApi(contactId, newStatus);
+      if (res.success) {
+        setActionMessage(`Contact report status updated to ${newStatus}!`);
+        setTimeout(() => setActionMessage(''), 3500);
+        loadData(true);
+      }
+    } catch (err) {
+      console.error('Failed to update contact report status:', err);
+      alert('Failed to update status.');
+    }
+  };
+
+  const handleDeleteContactReport = async (contactId) => {
+    if (!window.confirm('Are you sure you want to delete this contact report?')) return;
+    try {
+      const res = await deleteContactReportApi(contactId);
+      if (res.success) {
+        setActionMessage('Contact report deleted successfully.');
+        setTimeout(() => setActionMessage(''), 3500);
+        loadData(true);
+      }
+    } catch (err) {
+      console.error('Failed to delete contact report:', err);
+      alert('Failed to delete report.');
     }
   };
 
@@ -515,6 +554,24 @@ export const Dashboard = ({ adminUser, onLogout }) => {
             </button>
 
             <button
+              className={`sidebar-nav-item ${activeTab === 'contact-reports' ? 'active' : ''}`}
+              onClick={() => {
+                setActiveTab('contact-reports');
+                setMobileSidebarOpen(false);
+              }}
+            >
+              <div className="nav-item-icon">
+                <MessageSquare size={20} />
+              </div>
+              <span className="nav-item-label">User Reports (Contact-Us)</span>
+              {contactReports.filter(c => c.status === 'pending').length > 0 && (
+                <span className="nav-count-badge badge-warning">
+                  {contactReports.filter(c => c.status === 'pending').length}
+                </span>
+              )}
+            </button>
+
+            <button
               className={`sidebar-nav-item ${activeTab === 'subscriptions' ? 'active' : ''}`}
               onClick={() => {
                 setActiveTab('subscriptions');
@@ -556,11 +613,13 @@ export const Dashboard = ({ adminUser, onLogout }) => {
               <h1 className="header-page-title">
                 {activeTab === 'users' && 'All Registered Users'}
                 {activeTab === 'reports' && 'Reported Users & Reporters'}
+                {activeTab === 'contact-reports' && 'User Support Reports (Contact Us)'}
                 {activeTab === 'subscriptions' && 'Subscription Features & Dynamic Pricing'}
               </h1>
               <p className="header-page-sub">
                 {activeTab === 'users' && 'Manage user accounts, active status, search filters, and profile details'}
                 {activeTab === 'reports' && 'Review user complaints, issue official warnings, and manage moderation reports'}
+                {activeTab === 'contact-reports' && 'Review user support tickets submitted from app login page'}
                 {activeTab === 'subscriptions' && 'Manage VIP plans, dynamic pricing, and feature access permissions'}
               </p>
             </div>
@@ -650,11 +709,11 @@ export const Dashboard = ({ adminUser, onLogout }) => {
                   e.stopPropagation();
                   setShowReportModal(true);
                 }}
-                style={{ padding: '7px 14px', fontSize: '12px', whiteSpace: 'nowrap' }}
+                style={{ padding: '7px 14px', fontSize: '12px', whiteSpace: 'nowrap', backgroundColor: '#FE3C72', color: '#ffffff', border: 'none', borderRadius: '8px', fontWeight: '700', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}
                 title="Submit Reported User Form"
               >
-                <PlusCircle size={14} />
-                <span>Submit Report</span>
+                <PlusCircle size={14} color="#ffffff" />
+                <span style={{ color: '#ffffff' }}>Submit Report</span>
               </button>
             </div>
 
@@ -1345,6 +1404,402 @@ export const Dashboard = ({ adminUser, onLogout }) => {
                 </div>
               </div>
             )}
+          </div>
+        )}
+
+        {/* TAB 4: USER SUPPORT & CONTACT-US REPORTS */}
+        {activeTab === 'contact-reports' && (
+          <div className="tab-panel animate-fade-in">
+            {/* Top Metric Summary Cards */}
+            {(() => {
+              const totalCount = contactReports.length;
+              const pendingCount = contactReports.filter((c) => (c.status || 'pending') === 'pending').length;
+              const inProgressCount = contactReports.filter((c) => c.status === 'in-progress').length;
+              const resolvedCount = contactReports.filter((c) => c.status === 'resolved').length;
+
+              return (
+                <div className="stats-grid contact-reports-stats-grid" style={{ marginBottom: '20px' }}>
+                  <div
+                    className={`stat-card stat-users ${contactStatusFilter === 'all' ? 'selected-card' : ''}`}
+                    onClick={() => setContactStatusFilter('all')}
+                    style={{ cursor: 'pointer' }}
+                  >
+                    <div className="stat-icon-wrapper" style={{ backgroundColor: '#fff0f5', color: '#FE3C72' }}>
+                      <HelpCircle size={24} />
+                    </div>
+                    <div className="stat-content">
+                      <span className="stat-value">{totalCount}</span>
+                      <span className="stat-label">Total Support Tickets</span>
+                      <span className="stat-subtext">Submitted from Contact-Us form</span>
+                    </div>
+                  </div>
+
+                  <div
+                    className={`stat-card ${contactStatusFilter === 'pending' ? 'selected-card' : ''}`}
+                    onClick={() => setContactStatusFilter('pending')}
+                    style={{ cursor: 'pointer', borderLeft: '4px solid #f59e0b' }}
+                  >
+                    <div className="stat-icon-wrapper" style={{ backgroundColor: '#fef3c7', color: '#d97706' }}>
+                      <Clock size={24} />
+                    </div>
+                    <div className="stat-content">
+                      <span className="stat-value" style={{ color: '#d97706' }}>{pendingCount}</span>
+                      <span className="stat-label">Pending Action</span>
+                      <span className="stat-subtext">Awaiting admin review</span>
+                    </div>
+                  </div>
+
+                  <div
+                    className={`stat-card ${contactStatusFilter === 'in-progress' ? 'selected-card' : ''}`}
+                    onClick={() => setContactStatusFilter('in-progress')}
+                    style={{ cursor: 'pointer', borderLeft: '4px solid #3b82f6' }}
+                  >
+                    <div className="stat-icon-wrapper" style={{ backgroundColor: '#dbeafe', color: '#2563eb' }}>
+                      <RefreshCw size={24} />
+                    </div>
+                    <div className="stat-content">
+                      <span className="stat-value" style={{ color: '#2563eb' }}>{inProgressCount}</span>
+                      <span className="stat-label">In Progress</span>
+                      <span className="stat-subtext">Currently being handled</span>
+                    </div>
+                  </div>
+
+                  <div
+                    className={`stat-card ${contactStatusFilter === 'resolved' ? 'selected-card' : ''}`}
+                    onClick={() => setContactStatusFilter('resolved')}
+                    style={{ cursor: 'pointer', borderLeft: '4px solid #10b981' }}
+                  >
+                    <div className="stat-icon-wrapper" style={{ backgroundColor: '#d1fae5', color: '#059669' }}>
+                      <CheckCircle2 size={24} />
+                    </div>
+                    <div className="stat-content">
+                      <span className="stat-value" style={{ color: '#059669' }}>{resolvedCount}</span>
+                      <span className="stat-label">Resolved Tickets</span>
+                      <span className="stat-subtext">Successfully completed</span>
+                    </div>
+                  </div>
+                </div>
+              );
+            })()}
+
+            {/* Filter and Search Bar */}
+            <div className="table-filter-bar contact-filter-bar">
+              <div className="search-input-wrapper">
+                <Search size={18} className="search-icon" />
+                <input
+                  type="text"
+                  className="table-search-input"
+                  placeholder="Search by name, email, phone, subject or message..."
+                  value={contactSearch}
+                  onChange={(e) => setContactSearch(e.target.value)}
+                />
+                {contactSearch && (
+                  <button className="clear-search-btn" onClick={() => setContactSearch('')}>
+                    <X size={14} />
+                  </button>
+                )}
+              </div>
+
+              <div className="filter-controls-group">
+                {/* Quick Status Pills */}
+                <div className="contact-quick-status-pills">
+                  <button
+                    type="button"
+                    className={`status-pill-btn ${contactStatusFilter === 'all' ? 'active' : ''}`}
+                    onClick={() => setContactStatusFilter('all')}
+                  >
+                    All ({contactReports.length})
+                  </button>
+                  <button
+                    type="button"
+                    className={`status-pill-btn pending ${contactStatusFilter === 'pending' ? 'active' : ''}`}
+                    onClick={() => setContactStatusFilter('pending')}
+                  >
+                    Pending ({contactReports.filter((c) => (c.status || 'pending') === 'pending').length})
+                  </button>
+                  <button
+                    type="button"
+                    className={`status-pill-btn in-progress ${contactStatusFilter === 'in-progress' ? 'active' : ''}`}
+                    onClick={() => setContactStatusFilter('in-progress')}
+                  >
+                    In Progress ({contactReports.filter((c) => c.status === 'in-progress').length})
+                  </button>
+                  <button
+                    type="button"
+                    className={`status-pill-btn resolved ${contactStatusFilter === 'resolved' ? 'active' : ''}`}
+                    onClick={() => setContactStatusFilter('resolved')}
+                  >
+                    Resolved ({contactReports.filter((c) => c.status === 'resolved').length})
+                  </button>
+                </div>
+
+                <div className="filter-select-wrapper">
+                  <Filter size={16} className="filter-icon" />
+                  <select
+                    className="table-filter-select"
+                    value={contactStatusFilter}
+                    onChange={(e) => setContactStatusFilter(e.target.value)}
+                  >
+                    <option value="all">All Statuses</option>
+                    <option value="pending">Pending</option>
+                    <option value="in-progress">In Progress</option>
+                    <option value="resolved">Resolved</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            {/* Filtered Data List Calculation */}
+            {(() => {
+              const filtered = contactReports.filter((item) => {
+                const q = contactSearch.toLowerCase().trim();
+                const matchesSearch =
+                  !q ||
+                  (item.name || '').toLowerCase().includes(q) ||
+                  (item.email || '').toLowerCase().includes(q) ||
+                  (item.phone || '').toLowerCase().includes(q) ||
+                  (item.subject || '').toLowerCase().includes(q) ||
+                  (item.message || '').toLowerCase().includes(q);
+
+                const matchesStatus =
+                  contactStatusFilter === 'all' || (item.status || 'pending') === contactStatusFilter;
+
+                return matchesSearch && matchesStatus;
+              });
+
+              if (filtered.length === 0) {
+                return (
+                  <div
+                    style={{
+                      textAlign: 'center',
+                      padding: '50px 20px',
+                      backgroundColor: '#ffffff',
+                      borderRadius: '16px',
+                      border: '1px solid #e2e8f0',
+                      marginTop: '16px',
+                      color: '#64748b',
+                    }}
+                  >
+                    <MessageSquare size={44} style={{ marginBottom: '12px', opacity: 0.4, color: '#FE3C72' }} />
+                    <h4 style={{ margin: '0 0 6px 0', color: '#0f172a', fontWeight: '700' }}>No support reports found</h4>
+                    <p style={{ margin: 0, fontSize: '13px' }}>
+                      {contactSearch || contactStatusFilter !== 'all'
+                        ? 'Try adjusting your search query or status filter.'
+                        : 'No user reports have been submitted yet.'}
+                    </p>
+                  </div>
+                );
+              }
+
+              return (
+                <>
+                  {/* Desktop & Tablet Data Table */}
+                  <div className="table-responsive-wrapper contact-desktop-table-wrapper">
+                    <table className="pink-data-table contact-reports-table">
+                      <thead>
+                        <tr>
+                          <th style={{ width: '130px' }}>Date & Time</th>
+                          <th style={{ width: '160px' }}>Sender Name</th>
+                          <th style={{ width: '200px' }}>Contact Info</th>
+                          <th style={{ width: '180px' }}>Subject / Topic</th>
+                          <th>Problem Description</th>
+                          <th style={{ width: '110px' }}>Status</th>
+                          <th style={{ width: '150px' }}>Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {filtered.map((report) => (
+                          <tr key={report._id}>
+                            <td>
+                              <span style={{ fontSize: '12px', fontWeight: '600', color: '#334155' }}>
+                                {new Date(report.createdAt).toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' })}
+                              </span>
+                              <br />
+                              <span style={{ fontSize: '11px', color: '#94a3b8' }}>
+                                {new Date(report.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                              </span>
+                            </td>
+                            <td>
+                              <div style={{ fontWeight: '700', color: '#0f172a', fontSize: '13px' }}>
+                                {report.name || 'Guest User'}
+                              </div>
+                            </td>
+                            <td>
+                              <div style={{ fontSize: '12px', color: '#334155' }}>
+                                {report.email ? (
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: '5px', wordBreak: 'break-all' }}>
+                                    <Mail size={12} color="#64748b" style={{ flexShrink: 0 }} />
+                                    <span>{report.email}</span>
+                                  </div>
+                                ) : null}
+                                {report.phone ? (
+                                  <div style={{ fontSize: '11px', color: '#64748b', marginTop: '2px' }}>{report.phone}</div>
+                                ) : null}
+                                {!report.email && !report.phone && <span style={{ color: '#94a3b8' }}>N/A</span>}
+                              </div>
+                            </td>
+                            <td>
+                              <span
+                                style={{
+                                  display: 'inline-block',
+                                  fontSize: '12px',
+                                  fontWeight: '600',
+                                  color: '#1e293b',
+                                  backgroundColor: '#f1f5f9',
+                                  padding: '4px 10px',
+                                  borderRadius: '6px',
+                                }}
+                              >
+                                {report.subject || 'General Inquiry'}
+                              </span>
+                            </td>
+                            <td>
+                              <div
+                                style={{
+                                  backgroundColor: '#f8fafc',
+                                  border: '1px solid #e2e8f0',
+                                  borderRadius: '8px',
+                                  padding: '8px 12px',
+                                  fontSize: '12.5px',
+                                  color: '#334155',
+                                  lineHeight: '18px',
+                                  maxHeight: '110px',
+                                  overflowY: 'auto',
+                                  whiteSpace: 'pre-wrap',
+                                }}
+                              >
+                                {report.message}
+                              </div>
+                            </td>
+                            <td>
+                              {report.status === 'resolved' ? (
+                                <span className="status-pill pill-resolved">Resolved</span>
+                              ) : report.status === 'in-progress' ? (
+                                <span className="status-pill pill-reviewed">In Progress</span>
+                              ) : (
+                                <span className="status-pill pill-pending">Pending</span>
+                              )}
+                            </td>
+                            <td>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'nowrap' }}>
+                                <select
+                                  value={report.status || 'pending'}
+                                  onChange={(e) => handleUpdateContactStatus(report._id, e.target.value)}
+                                  style={{
+                                    padding: '5px 8px',
+                                    borderRadius: '6px',
+                                    fontSize: '12px',
+                                    fontWeight: '600',
+                                    border: '1px solid #cbd5e1',
+                                    backgroundColor: '#ffffff',
+                                    cursor: 'pointer',
+                                  }}
+                                >
+                                  <option value="pending">Pending</option>
+                                  <option value="in-progress">In Progress</option>
+                                  <option value="resolved">Resolved</option>
+                                </select>
+
+                                <button
+                                  type="button"
+                                  onClick={() => handleDeleteContactReport(report._id)}
+                                  style={{
+                                    padding: '6px 8px',
+                                    borderRadius: '6px',
+                                    border: '1px solid #fee2e2',
+                                    backgroundColor: '#fff1f2',
+                                    color: '#ef4444',
+                                    cursor: 'pointer',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                  }}
+                                  title="Delete Report"
+                                >
+                                  <Trash2 size={14} />
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  {/* Mobile Cards View (Visible on Mobile Screens) */}
+                  <div className="contact-mobile-cards-container">
+                    {filtered.map((report) => (
+                      <div key={report._id} className="contact-mobile-card">
+                        <div className="contact-mobile-card-header">
+                          <div className="contact-mobile-sender">
+                            <span className="sender-name">{report.name || 'Guest User'}</span>
+                            <span className="sender-time">
+                              {new Date(report.createdAt).toLocaleDateString([], { month: 'short', day: 'numeric' })} • {new Date(report.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                            </span>
+                          </div>
+                          <div>
+                            {report.status === 'resolved' ? (
+                              <span className="status-pill pill-resolved">Resolved</span>
+                            ) : report.status === 'in-progress' ? (
+                              <span className="status-pill pill-reviewed">In Progress</span>
+                            ) : (
+                              <span className="status-pill pill-pending">Pending</span>
+                            )}
+                          </div>
+                        </div>
+
+                        <div className="contact-mobile-card-body">
+                          <div className="contact-mobile-topic">
+                            <span className="topic-badge">{report.subject || 'General Inquiry'}</span>
+                          </div>
+
+                          {(report.email || report.phone) && (
+                            <div className="contact-mobile-info">
+                              {report.email && (
+                                <div className="info-item">
+                                  <Mail size={13} color="#64748b" />
+                                  <a href={`mailto:${report.email}`} className="email-link">{report.email}</a>
+                                </div>
+                              )}
+                              {report.phone && <div className="info-item phone">{report.phone}</div>}
+                            </div>
+                          )}
+
+                          <div className="contact-mobile-message-box">
+                            {report.message}
+                          </div>
+                        </div>
+
+                        <div className="contact-mobile-card-footer">
+                          <div className="status-select-group">
+                            <label className="select-label">Change Status:</label>
+                            <select
+                              value={report.status || 'pending'}
+                              onChange={(e) => handleUpdateContactStatus(report._id, e.target.value)}
+                              className="mobile-status-select"
+                            >
+                              <option value="pending">Pending</option>
+                              <option value="in-progress">In Progress</option>
+                              <option value="resolved">Resolved</option>
+                            </select>
+                          </div>
+
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteContactReport(report._id)}
+                            className="mobile-delete-btn"
+                            title="Delete Report"
+                          >
+                            <Trash2 size={14} />
+                            <span>Delete</span>
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </>
+              );
+            })()}
           </div>
         )}
 
