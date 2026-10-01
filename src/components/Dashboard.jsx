@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import ResponsiveSelect from './ResponsiveSelect';
 import { 
   Users, 
   ShieldAlert, 
@@ -36,6 +37,11 @@ import {
   Mail,
   Trash2,
   HelpCircle,
+  Eye,
+  Copy,
+  Check,
+  Phone,
+  Save,
 } from 'lucide-react';
 import { TwoStringsLogo } from './TwoStringsLogo';
 import { SubscriptionManager } from './SubscriptionManager';
@@ -61,6 +67,14 @@ export const Dashboard = ({ adminUser, onLogout }) => {
   const [reportAnalytics, setReportAnalytics] = useState(null);
   const [contactAnalytics, setContactAnalytics] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  const handleRefreshPage = () => {
+    setIsRefreshing(true);
+    setTimeout(() => {
+      window.location.reload();
+    }, 150);
+  };
 
   // Filters & Search
   const [userSearch, setUserSearch] = useState('');
@@ -118,6 +132,7 @@ export const Dashboard = ({ adminUser, onLogout }) => {
   const ITEMS_PER_PAGE = 10;
   const [usersPage, setUsersPage] = useState(1);
   const [reportsPage, setReportsPage] = useState(1);
+  const [contactReportsPage, setContactReportsPage] = useState(1);
 
   useEffect(() => {
     setUsersPage(1);
@@ -126,6 +141,84 @@ export const Dashboard = ({ adminUser, onLogout }) => {
   useEffect(() => {
     setReportsPage(1);
   }, [reportStatusFilter]);
+
+  useEffect(() => {
+    setContactReportsPage(1);
+  }, [contactSearch, contactStatusFilter]);
+
+  // Contact Us Report View Details Modal State
+  const [viewContactModal, setViewContactModal] = useState({
+    open: false,
+    report: null,
+    adminNotes: '',
+    savingNotes: false,
+  });
+
+  const [copiedField, setCopiedField] = useState('');
+
+  const handleOpenContactModal = (report) => {
+    setViewContactModal({
+      open: true,
+      report,
+      adminNotes: report.adminNotes || '',
+      savingNotes: false,
+    });
+  };
+
+  const handleCopyText = (text, fieldName) => {
+    if (!text) return;
+    navigator.clipboard.writeText(text);
+    setCopiedField(fieldName);
+    setTimeout(() => setCopiedField(''), 2000);
+  };
+
+  const handleSaveContactNotes = async () => {
+    if (!viewContactModal.report) return;
+    setViewContactModal((prev) => ({ ...prev, savingNotes: true }));
+    try {
+      const reportId = viewContactModal.report._id;
+      const currentStatus = viewContactModal.report.status || 'pending';
+      const res = await updateContactStatusApi(reportId, currentStatus, viewContactModal.adminNotes);
+      if (res.success) {
+        setActionMessage('Admin notes saved successfully!');
+        setTimeout(() => setActionMessage(''), 3500);
+        setContactReports((prev) =>
+          prev.map((item) => (item._id === reportId ? { ...item, adminNotes: viewContactModal.adminNotes } : item))
+        );
+        setViewContactModal((prev) => ({
+          ...prev,
+          report: { ...prev.report, adminNotes: prev.adminNotes },
+          savingNotes: false,
+        }));
+      }
+    } catch (err) {
+      console.error('Failed to save admin notes:', err);
+      alert('Failed to save admin notes.');
+      setViewContactModal((prev) => ({ ...prev, savingNotes: false }));
+    }
+  };
+
+  const handleModalStatusChange = async (newStatus) => {
+    if (!viewContactModal.report) return;
+    try {
+      const reportId = viewContactModal.report._id;
+      const res = await updateContactStatusApi(reportId, newStatus, viewContactModal.adminNotes);
+      if (res.success) {
+        setActionMessage(`Status updated to ${newStatus}!`);
+        setTimeout(() => setActionMessage(''), 3500);
+        setContactReports((prev) =>
+          prev.map((item) => (item._id === reportId ? { ...item, status: newStatus } : item))
+        );
+        setViewContactModal((prev) => ({
+          ...prev,
+          report: { ...prev.report, status: newStatus },
+        }));
+      }
+    } catch (err) {
+      console.error('Failed to update status:', err);
+      alert('Failed to update status.');
+    }
+  };
 
   // Report/Warning Form Modal State
   const [showReportModal, setShowReportModal] = useState(false);
@@ -513,7 +606,15 @@ export const Dashboard = ({ adminUser, onLogout }) => {
 
       {/* Left Pink Sidebar Navigation */}
       <aside className={`pink-admin-sidebar ${mobileSidebarOpen ? 'sidebar-open' : ''}`}>
-        <div className="sidebar-header">
+        <div className="sidebar-header" style={{ position: 'relative' }}>
+          <button
+            type="button"
+            className="sidebar-close-btn"
+            onClick={() => setMobileSidebarOpen(false)}
+            title="Close Navigation Menu"
+          >
+            <X size={20} />
+          </button>
           <TwoStringsLogo size={42} color="#ffffff" textColor="#ffffff" showText={true} />
           <span className="sidebar-badge">ADMIN PANEL</span>
         </div>
@@ -627,16 +728,15 @@ export const Dashboard = ({ adminUser, onLogout }) => {
 
           <div className="header-right">
             {/* Refresh Button */}
-            <button className="header-refresh-btn" onClick={loadData} title="Refresh All Data">
-              <RefreshCw size={15} className={loading ? 'spin-icon' : ''} />
+            <button 
+              type="button" 
+              className="header-refresh-btn" 
+              onClick={handleRefreshPage} 
+              title="Refresh Page & Reload All Data"
+            >
+              <RefreshCw size={15} className={isRefreshing || loading ? 'spin-icon' : ''} />
               <span>Refresh</span>
             </button>
-
-            {/* Live System Indicator */}
-            <div className="live-status-pill">
-              <span className="live-pulse-dot" />
-              <span>Live System Active</span>
-            </div>
 
             {/* Super Admin & Email Profile Card */}
             <div className="header-admin-profile">
@@ -767,44 +867,50 @@ export const Dashboard = ({ adminUser, onLogout }) => {
 
               <div className="filter-box">
                 <Filter size={16} className="filter-icon" />
-                <select 
-                  value={genderFilter} 
-                  onChange={(e) => setGenderFilter(e.target.value)}
-                  className="filter-select"
-                >
-                  <option value="all">All Genders</option>
-                  <option value="men">Men</option>
-                  <option value="women">Women</option>
-                </select>
+                <ResponsiveSelect
+                  hasLeftIcon={true}
+                  options={[
+                    { value: 'all', label: 'All Genders' },
+                    { value: 'men', label: 'Men' },
+                    { value: 'women', label: 'Women' },
+                  ]}
+                  value={genderFilter}
+                  onChange={(val) => setGenderFilter(val)}
+                  style={{ minWidth: '150px' }}
+                />
               </div>
 
               <div className="filter-box">
                 <ShieldCheck size={16} className="filter-icon" />
-                <select 
-                  value={accountStatusFilter} 
-                  onChange={(e) => setAccountStatusFilter(e.target.value)}
-                  className="filter-select"
-                >
-                  <option value="all">All Accounts (Active & Inactive)</option>
-                  <option value="active">Active Accounts Only</option>
-                  <option value="inactive">Inactive / Blocked Accounts Only</option>
-                </select>
+                <ResponsiveSelect
+                  hasLeftIcon={true}
+                  options={[
+                    { value: 'all', label: 'All Accounts (Active & Inactive)' },
+                    { value: 'active', label: 'Active Accounts Only' },
+                    { value: 'inactive', label: 'Inactive / Blocked Accounts Only' },
+                  ]}
+                  value={accountStatusFilter}
+                  onChange={(val) => setAccountStatusFilter(val)}
+                  style={{ minWidth: '220px' }}
+                />
               </div>
 
               <div className="filter-box">
                 <CreditCard size={16} className="filter-icon" />
-                <select 
-                  value={subscriptionFilter} 
-                  onChange={(e) => setSubscriptionFilter(e.target.value)}
-                  className="filter-select"
-                >
-                  <option value="all">All Subscriptions (Paid & Free)</option>
-                  <option value="paid">Paid Subscribers Only</option>
-                  <option value="free">Free Tier Only</option>
-                  <option value="gold">Gold Plans</option>
-                  <option value="platinum">Platinum / VIP</option>
-                  <option value="silver">Silver Plans</option>
-                </select>
+                <ResponsiveSelect
+                  hasLeftIcon={true}
+                  options={[
+                    { value: 'all', label: 'All Subscriptions (Paid & Free)' },
+                    { value: 'paid', label: 'Paid Subscribers Only' },
+                    { value: 'free', label: 'Free Tier Only' },
+                    { value: 'gold', label: 'Gold Plans' },
+                    { value: 'platinum', label: 'Platinum / VIP' },
+                    { value: 'silver', label: 'Silver Plans' },
+                  ]}
+                  value={subscriptionFilter}
+                  onChange={(val) => setSubscriptionFilter(val)}
+                  style={{ minWidth: '220px' }}
+                />
               </div>
             </div>
 
@@ -1077,66 +1183,66 @@ export const Dashboard = ({ adminUser, onLogout }) => {
                     })}
                   </tbody>
                 </table>
+              </div>
 
-                {/* Pagination Controls Footer for Users */}
-                <div className="pagination-wrapper">
-                  <div className="pagination-info">
-                    Showing <strong>{usersStartIndex + 1}</strong>–<strong>{Math.min(usersStartIndex + ITEMS_PER_PAGE, totalUsersCount)}</strong> of <strong>{totalUsersCount}</strong> users
-                  </div>
-                  <div className="pagination-controls">
-                    <button
-                      className="pagination-btn"
-                      disabled={currentUsersPage === 1}
-                      onClick={() => setUsersPage(1)}
-                      title="First Page"
-                    >
-                      <ChevronsLeft size={16} />
-                    </button>
-                    <button
-                      className="pagination-btn"
-                      disabled={currentUsersPage === 1}
-                      onClick={() => setUsersPage((prev) => Math.max(1, prev - 1))}
-                      title="Previous Page"
-                    >
-                      <ChevronLeft size={16} />
-                      <span style={{ marginLeft: '4px' }}>Prev</span>
-                    </button>
+              {/* Pagination Controls Footer for Users */}
+              <div className="pagination-wrapper">
+                <div className="pagination-info">
+                  Showing <strong>{usersStartIndex + 1}</strong>–<strong>{Math.min(usersStartIndex + ITEMS_PER_PAGE, totalUsersCount)}</strong> of <strong>{totalUsersCount}</strong> users
+                </div>
+                <div className="pagination-controls">
+                  <button
+                    className="pagination-btn"
+                    disabled={currentUsersPage === 1}
+                    onClick={() => setUsersPage(1)}
+                    title="First Page"
+                  >
+                    <ChevronsLeft size={16} />
+                  </button>
+                  <button
+                    className="pagination-btn"
+                    disabled={currentUsersPage === 1}
+                    onClick={() => setUsersPage((prev) => Math.max(1, prev - 1))}
+                    title="Previous Page"
+                  >
+                    <ChevronLeft size={16} />
+                    <span style={{ marginLeft: '4px' }}>Prev</span>
+                  </button>
 
-                    {Array.from({ length: totalUserPages }, (_, i) => i + 1)
-                      .filter((page) => page === 1 || page === totalUserPages || Math.abs(page - currentUsersPage) <= 1)
-                      .map((page, idx, arr) => {
-                        const showEllipsis = idx > 0 && page - arr[idx - 1] > 1;
-                        return (
-                          <React.Fragment key={page}>
-                            {showEllipsis && <span className="pagination-ellipsis">...</span>}
-                            <button
-                              className={`pagination-btn ${page === currentUsersPage ? 'active' : ''}`}
-                              onClick={() => setUsersPage(page)}
-                            >
-                              {page}
-                            </button>
-                          </React.Fragment>
-                        );
-                      })}
+                  {Array.from({ length: totalUserPages }, (_, i) => i + 1)
+                    .filter((page) => page === 1 || page === totalUserPages || Math.abs(page - currentUsersPage) <= 1)
+                    .map((page, idx, arr) => {
+                      const showEllipsis = idx > 0 && page - arr[idx - 1] > 1;
+                      return (
+                        <React.Fragment key={page}>
+                          {showEllipsis && <span className="pagination-ellipsis">...</span>}
+                          <button
+                            className={`pagination-btn ${page === currentUsersPage ? 'active' : ''}`}
+                            onClick={() => setUsersPage(page)}
+                          >
+                            {page}
+                          </button>
+                        </React.Fragment>
+                      );
+                    })}
 
-                    <button
-                      className="pagination-btn"
-                      disabled={currentUsersPage === totalUserPages}
-                      onClick={() => setUsersPage((prev) => Math.min(totalUserPages, prev + 1))}
-                      title="Next Page"
-                    >
-                      <span style={{ marginRight: '4px' }}>Next</span>
-                      <ChevronRight size={16} />
-                    </button>
-                    <button
-                      className="pagination-btn"
-                      disabled={currentUsersPage === totalUserPages}
-                      onClick={() => setUsersPage(totalUserPages)}
-                      title="Last Page"
-                    >
-                      <ChevronsRight size={16} />
-                    </button>
-                  </div>
+                  <button
+                    className="pagination-btn"
+                    disabled={currentUsersPage === totalUserPages}
+                    onClick={() => setUsersPage((prev) => Math.min(totalUserPages, prev + 1))}
+                    title="Next Page"
+                  >
+                    <span style={{ marginRight: '4px' }}>Next</span>
+                    <ChevronRight size={16} />
+                  </button>
+                  <button
+                    className="pagination-btn"
+                    disabled={currentUsersPage === totalUserPages}
+                    onClick={() => setUsersPage(totalUserPages)}
+                    title="Last Page"
+                  >
+                    <ChevronsRight size={16} />
+                  </button>
                 </div>
               </div>
             </>
@@ -1151,17 +1257,19 @@ export const Dashboard = ({ adminUser, onLogout }) => {
             <div className="toolbar" style={{ justifyContent: 'space-between' }}>
               <div className="filter-box">
                 <Filter size={16} className="filter-icon" />
-                <select 
-                  value={reportStatusFilter} 
-                  onChange={(e) => setReportStatusFilter(e.target.value)}
-                  className="filter-select"
-                >
-                  <option value="all">All Report Statuses</option>
-                  <option value="pending">Pending</option>
-                  <option value="reviewed">Reviewed</option>
-                  <option value="resolved">Resolved</option>
-                  <option value="dismissed">Dismissed</option>
-                </select>
+                <ResponsiveSelect
+                  hasLeftIcon={true}
+                  options={[
+                    { value: 'all', label: 'All Report Statuses' },
+                    { value: 'pending', label: 'Pending' },
+                    { value: 'reviewed', label: 'Reviewed' },
+                    { value: 'resolved', label: 'Resolved' },
+                    { value: 'dismissed', label: 'Dismissed' },
+                  ]}
+                  value={reportStatusFilter}
+                  onChange={(val) => setReportStatusFilter(val)}
+                  style={{ minWidth: '180px' }}
+                />
               </div>
 
               <button 
@@ -1313,17 +1421,18 @@ export const Dashboard = ({ adminUser, onLogout }) => {
                       <div className="report-card-footer-row">
                         <div className="selected-status-display" style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
                           <span className="status-label-title">Change Status:</span>
-                          <select
-                            className="filter-select"
-                            style={{ padding: '4px 10px', fontSize: '12px', height: '32px', minWidth: '130px' }}
+                          <ResponsiveSelect
+                            options={[
+                              { value: 'pending', label: 'Pending' },
+                              { value: 'reviewed', label: 'Under Review' },
+                              { value: 'resolved', label: 'Resolved' },
+                              { value: 'dismissed', label: 'Dismissed' },
+                            ]}
                             value={(report.status || 'pending').toLowerCase()}
-                            onChange={(e) => handleUpdateStatus(report._id, e.target.value)}
-                          >
-                            <option value="pending">Pending</option>
-                            <option value="reviewed">Under Review</option>
-                            <option value="resolved">Resolved</option>
-                            <option value="dismissed">Dismissed</option>
-                          </select>
+                            onChange={(val) => handleUpdateStatus(report._id, val)}
+                            compact
+                            style={{ minWidth: '135px' }}
+                          />
                           {getReportStatusBadge(report.status)}
                         </div>
 
@@ -1535,16 +1644,18 @@ export const Dashboard = ({ adminUser, onLogout }) => {
 
                 <div className="filter-select-wrapper">
                   <Filter size={16} className="filter-icon" />
-                  <select
-                    className="table-filter-select"
+                  <ResponsiveSelect
+                    hasLeftIcon={true}
+                    options={[
+                      { value: 'all', label: 'All Statuses' },
+                      { value: 'pending', label: 'Pending' },
+                      { value: 'in-progress', label: 'In Progress' },
+                      { value: 'resolved', label: 'Resolved' },
+                    ]}
                     value={contactStatusFilter}
-                    onChange={(e) => setContactStatusFilter(e.target.value)}
-                  >
-                    <option value="all">All Statuses</option>
-                    <option value="pending">Pending</option>
-                    <option value="in-progress">In Progress</option>
-                    <option value="resolved">Resolved</option>
-                  </select>
+                    onChange={(val) => setContactStatusFilter(val)}
+                    style={{ minWidth: '160px' }}
+                  />
                 </div>
               </div>
             </div>
@@ -1566,6 +1677,12 @@ export const Dashboard = ({ adminUser, onLogout }) => {
 
                 return matchesSearch && matchesStatus;
               });
+
+              const totalContactCount = filtered.length;
+              const totalContactPages = Math.max(1, Math.ceil(totalContactCount / ITEMS_PER_PAGE));
+              const currentContactPage = Math.min(contactReportsPage, totalContactPages);
+              const contactStartIndex = (currentContactPage - 1) * ITEMS_PER_PAGE;
+              const paginatedContactReports = filtered.slice(contactStartIndex, contactStartIndex + ITEMS_PER_PAGE);
 
               if (filtered.length === 0) {
                 return (
@@ -1598,137 +1715,214 @@ export const Dashboard = ({ adminUser, onLogout }) => {
                     <table className="pink-data-table contact-reports-table">
                       <thead>
                         <tr>
+                          <th style={{ width: '50px', textAlign: 'center' }}>#</th>
                           <th style={{ width: '130px' }}>Date & Time</th>
                           <th style={{ width: '160px' }}>Sender Name</th>
-                          <th style={{ width: '200px' }}>Contact Info</th>
-                          <th style={{ width: '180px' }}>Subject / Topic</th>
-                          <th>Problem Description</th>
+                          <th style={{ width: '190px' }}>Contact Info</th>
+                          <th style={{ width: '160px' }}>Subject / Topic</th>
+                          <th style={{ minWidth: '200px' }}>Problem Description</th>
                           <th style={{ width: '110px' }}>Status</th>
-                          <th style={{ width: '150px' }}>Actions</th>
+                          <th style={{ width: '195px', textAlign: 'center' }}>Actions</th>
                         </tr>
                       </thead>
                       <tbody>
-                        {filtered.map((report) => (
-                          <tr key={report._id}>
-                            <td>
-                              <span style={{ fontSize: '12px', fontWeight: '600', color: '#334155' }}>
-                                {new Date(report.createdAt).toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' })}
-                              </span>
-                              <br />
-                              <span style={{ fontSize: '11px', color: '#94a3b8' }}>
-                                {new Date(report.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                              </span>
-                            </td>
-                            <td>
-                              <div style={{ fontWeight: '700', color: '#0f172a', fontSize: '13px' }}>
-                                {report.name || 'Guest User'}
-                              </div>
-                            </td>
-                            <td>
-                              <div style={{ fontSize: '12px', color: '#334155' }}>
-                                {report.email ? (
-                                  <div style={{ display: 'flex', alignItems: 'center', gap: '5px', wordBreak: 'break-all' }}>
-                                    <Mail size={12} color="#64748b" style={{ flexShrink: 0 }} />
-                                    <span>{report.email}</span>
-                                  </div>
-                                ) : null}
-                                {report.phone ? (
-                                  <div style={{ fontSize: '11px', color: '#64748b', marginTop: '2px' }}>{report.phone}</div>
-                                ) : null}
-                                {!report.email && !report.phone && <span style={{ color: '#94a3b8' }}>N/A</span>}
-                              </div>
-                            </td>
-                            <td>
-                              <span
-                                style={{
-                                  display: 'inline-block',
-                                  fontSize: '12px',
-                                  fontWeight: '600',
-                                  color: '#1e293b',
-                                  backgroundColor: '#f1f5f9',
-                                  padding: '4px 10px',
-                                  borderRadius: '6px',
-                                }}
-                              >
-                                {report.subject || 'General Inquiry'}
-                              </span>
-                            </td>
-                            <td>
-                              <div
-                                style={{
-                                  backgroundColor: '#f8fafc',
-                                  border: '1px solid #e2e8f0',
-                                  borderRadius: '8px',
-                                  padding: '8px 12px',
-                                  fontSize: '12.5px',
-                                  color: '#334155',
-                                  lineHeight: '18px',
-                                  maxHeight: '110px',
-                                  overflowY: 'auto',
-                                  whiteSpace: 'pre-wrap',
-                                }}
-                              >
-                                {report.message}
-                              </div>
-                            </td>
-                            <td>
-                              {report.status === 'resolved' ? (
-                                <span className="status-pill pill-resolved">Resolved</span>
-                              ) : report.status === 'in-progress' ? (
-                                <span className="status-pill pill-reviewed">In Progress</span>
-                              ) : (
-                                <span className="status-pill pill-pending">Pending</span>
-                              )}
-                            </td>
-                            <td>
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'nowrap' }}>
-                                <select
-                                  value={report.status || 'pending'}
-                                  onChange={(e) => handleUpdateContactStatus(report._id, e.target.value)}
-                                  style={{
-                                    padding: '5px 8px',
-                                    borderRadius: '6px',
-                                    fontSize: '12px',
-                                    fontWeight: '600',
-                                    border: '1px solid #cbd5e1',
-                                    backgroundColor: '#ffffff',
-                                    cursor: 'pointer',
-                                  }}
-                                >
-                                  <option value="pending">Pending</option>
-                                  <option value="in-progress">In Progress</option>
-                                  <option value="resolved">Resolved</option>
-                                </select>
+                        {paginatedContactReports.map((report, idx) => {
+                          const globalIndex = contactStartIndex + idx + 1;
+                          const messageSnippet =
+                            report.message && report.message.length > 65
+                              ? report.message.substring(0, 65) + '...'
+                              : report.message;
 
-                                <button
-                                  type="button"
-                                  onClick={() => handleDeleteContactReport(report._id)}
+                          return (
+                            <tr key={report._id}>
+                              <td style={{ textAlign: 'center', fontWeight: '700', color: '#94a3b8', fontSize: '12px' }}>
+                                {globalIndex}
+                              </td>
+                              <td>
+                                <div style={{ fontSize: '12px', fontWeight: '700', color: '#0f172a' }}>
+                                  {new Date(report.createdAt).toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' })}
+                                </div>
+                                <div style={{ fontSize: '11px', color: '#64748b', marginTop: '2px', display: 'flex', alignItems: 'center', gap: '3px' }}>
+                                  <Clock size={11} color="#94a3b8" />
+                                  <span>{new Date(report.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                                </div>
+                              </td>
+                              <td>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '9px' }}>
+                                  <div
+                                    style={{
+                                      width: '30px',
+                                      height: '30px',
+                                      borderRadius: '50%',
+                                      backgroundColor: getAvatarColor(report.name),
+                                      color: '#ffffff',
+                                      fontWeight: '800',
+                                      fontSize: '12px',
+                                      display: 'flex',
+                                      alignItems: 'center',
+                                      justifyContent: 'center',
+                                      flexShrink: 0,
+                                    }}
+                                  >
+                                    {(report.name || 'G')[0].toUpperCase()}
+                                  </div>
+                                  <div>
+                                    <div style={{ fontWeight: '700', color: '#0f172a', fontSize: '13px' }}>
+                                      {report.name || 'Guest User'}
+                                    </div>
+                                    {!report.email && !report.phone && (
+                                      <span style={{ fontSize: '10.5px', color: '#94a3b8', fontStyle: 'italic' }}>Guest</span>
+                                    )}
+                                  </div>
+                                </div>
+                              </td>
+                              <td>
+                                <div style={{ fontSize: '12px', color: '#334155', display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                                  {report.email ? (
+                                    <a
+                                      href={`mailto:${report.email}`}
+                                      style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', color: '#2563eb', textDecoration: 'none', wordBreak: 'break-all', fontWeight: '600' }}
+                                      title="Send Email"
+                                    >
+                                      <Mail size={12} color="#3b82f6" style={{ flexShrink: 0 }} />
+                                      <span>{report.email}</span>
+                                    </a>
+                                  ) : null}
+                                  {report.phone ? (
+                                    <a
+                                      href={`tel:${report.phone}`}
+                                      style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', color: '#475569', textDecoration: 'none', fontSize: '11.5px', fontWeight: '600' }}
+                                      title="Call Phone"
+                                    >
+                                      <Phone size={11} color="#10b981" style={{ flexShrink: 0 }} />
+                                      <span>{report.phone}</span>
+                                    </a>
+                                  ) : null}
+                                  {!report.email && !report.phone && <span style={{ color: '#94a3b8' }}>N/A</span>}
+                                </div>
+                              </td>
+                              <td>
+                                <span
                                   style={{
-                                    padding: '6px 8px',
+                                    display: 'inline-block',
+                                    fontSize: '11.5px',
+                                    fontWeight: '700',
+                                    color: '#be185d',
+                                    backgroundColor: '#fff0f5',
+                                    border: '1px solid #fbcfe8',
+                                    padding: '4px 9px',
                                     borderRadius: '6px',
-                                    border: '1px solid #fee2e2',
-                                    backgroundColor: '#fff1f2',
-                                    color: '#ef4444',
-                                    cursor: 'pointer',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'center',
+                                    maxWidth: '150px',
+                                    overflow: 'hidden',
+                                    textOverflow: 'ellipsis',
+                                    whiteSpace: 'nowrap',
                                   }}
-                                  title="Delete Report"
+                                  title={report.subject || 'General Inquiry'}
                                 >
-                                  <Trash2 size={14} />
-                                </button>
-                              </div>
-                            </td>
-                          </tr>
-                        ))}
+                                  {report.subject || 'General Inquiry'}
+                                </span>
+                              </td>
+                              <td>
+                                <div
+                                  style={{
+                                    backgroundColor: '#f8fafc',
+                                    border: '1px solid #e2e8f0',
+                                    borderRadius: '8px',
+                                    padding: '6px 10px',
+                                    fontSize: '12px',
+                                    color: '#334155',
+                                    lineHeight: '1.4',
+                                    maxWidth: '240px',
+                                    wordBreak: 'break-word',
+                                  }}
+                                  title="Click 'View' button to see full issue message"
+                                >
+                                  {messageSnippet}
+                                </div>
+                              </td>
+                              <td>
+                                {report.status === 'resolved' ? (
+                                  <span className="status-pill pill-resolved">Resolved</span>
+                                ) : report.status === 'in-progress' ? (
+                                  <span className="status-pill pill-reviewed">In Progress</span>
+                                ) : (
+                                  <span className="status-pill pill-pending">Pending</span>
+                                )}
+                              </td>
+                              <td style={{ textAlign: 'center' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
+                                  
+                                  {/* VIEW BUTTON WITH MODAL LAUNCH */}
+                                  <button
+                                    type="button"
+                                    onClick={() => handleOpenContactModal(report)}
+                                    style={{
+                                      display: 'inline-flex',
+                                      alignItems: 'center',
+                                      gap: '5px',
+                                      padding: '6px 12px',
+                                      borderRadius: '8px',
+                                      border: '1.5px solid #fed7e2',
+                                      backgroundColor: '#fff5f7',
+                                      color: '#FE3C72',
+                                      fontSize: '12.5px',
+                                      fontWeight: '700',
+                                      cursor: 'pointer',
+                                      transition: 'all 0.2s ease',
+                                      boxShadow: '0 1px 3px rgba(254, 60, 114, 0.12)',
+                                    }}
+                                    className="btn-view-contact-report"
+                                    title="View complete user issue & submitted details"
+                                  >
+                                    <Eye size={14} />
+                                    <span>View</span>
+                                  </button>
+
+                                  {/* STATUS SELECT */}
+                                  <ResponsiveSelect
+                                    options={[
+                                      { value: 'pending', label: 'Pending' },
+                                      { value: 'in-progress', label: 'In Progress' },
+                                      { value: 'resolved', label: 'Resolved' },
+                                    ]}
+                                    value={report.status || 'pending'}
+                                    onChange={(val) => handleUpdateContactStatus(report._id, val)}
+                                    compact
+                                    style={{ minWidth: '130px' }}
+                                  />
+
+                                  {/* DELETE BUTTON */}
+                                  <button
+                                    type="button"
+                                    onClick={() => handleDeleteContactReport(report._id)}
+                                    style={{
+                                      padding: '6px 8px',
+                                      borderRadius: '8px',
+                                      border: '1px solid #fee2e2',
+                                      backgroundColor: '#fff1f2',
+                                      color: '#ef4444',
+                                      cursor: 'pointer',
+                                      display: 'inline-flex',
+                                      alignItems: 'center',
+                                      justifyContent: 'center',
+                                      transition: 'all 0.15s ease',
+                                    }}
+                                    title="Delete Report"
+                                  >
+                                    <Trash2 size={14} />
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+                          );
+                        })}
                       </tbody>
                     </table>
                   </div>
 
                   {/* Mobile Cards View (Visible on Mobile Screens) */}
                   <div className="contact-mobile-cards-container">
-                    {filtered.map((report) => (
+                    {paginatedContactReports.map((report) => (
                       <div key={report._id} className="contact-mobile-card">
                         <div className="contact-mobile-card-header">
                           <div className="contact-mobile-sender">
@@ -1766,22 +1960,46 @@ export const Dashboard = ({ adminUser, onLogout }) => {
                           )}
 
                           <div className="contact-mobile-message-box">
-                            {report.message}
+                            {report.message && report.message.length > 90
+                              ? report.message.substring(0, 90) + '...'
+                              : report.message}
                           </div>
                         </div>
 
                         <div className="contact-mobile-card-footer">
-                          <div className="status-select-group">
-                            <label className="select-label">Change Status:</label>
-                            <select
+                          <button
+                            type="button"
+                            onClick={() => handleOpenContactModal(report)}
+                            className="mobile-view-btn"
+                            style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '5px',
+                              padding: '6px 14px',
+                              borderRadius: '8px',
+                              border: '1.5px solid #fed7e2',
+                              backgroundColor: '#fff5f7',
+                              color: '#FE3C72',
+                              fontSize: '12.5px',
+                              fontWeight: '700',
+                              cursor: 'pointer',
+                            }}
+                          >
+                            <Eye size={14} />
+                            <span>View All Details</span>
+                          </button>
+
+                          <div className="status-select-group" style={{ flex: 1, minWidth: '130px' }}>
+                            <ResponsiveSelect
+                              options={[
+                                { value: 'pending', label: 'Pending' },
+                                { value: 'in-progress', label: 'In Progress' },
+                                { value: 'resolved', label: 'Resolved' },
+                              ]}
                               value={report.status || 'pending'}
-                              onChange={(e) => handleUpdateContactStatus(report._id, e.target.value)}
-                              className="mobile-status-select"
-                            >
-                              <option value="pending">Pending</option>
-                              <option value="in-progress">In Progress</option>
-                              <option value="resolved">Resolved</option>
-                            </select>
+                              onChange={(val) => handleUpdateContactStatus(report._id, val)}
+                              compact
+                            />
                           </div>
 
                           <button
@@ -1791,11 +2009,71 @@ export const Dashboard = ({ adminUser, onLogout }) => {
                             title="Delete Report"
                           >
                             <Trash2 size={14} />
-                            <span>Delete</span>
                           </button>
                         </div>
                       </div>
                     ))}
+                  </div>
+
+                  {/* Pagination Controls Footer for Contact Support Reports */}
+                  <div className="pagination-wrapper" style={{ marginTop: '20px' }}>
+                    <div className="pagination-info">
+                      Showing <strong>{contactStartIndex + 1}</strong>–<strong>{Math.min(contactStartIndex + ITEMS_PER_PAGE, totalContactCount)}</strong> of <strong>{totalContactCount}</strong> support tickets
+                    </div>
+                    <div className="pagination-controls">
+                      <button
+                        className="pagination-btn"
+                        disabled={currentContactPage === 1}
+                        onClick={() => setContactReportsPage(1)}
+                        title="First Page"
+                      >
+                        <ChevronsLeft size={16} />
+                      </button>
+                      <button
+                        className="pagination-btn"
+                        disabled={currentContactPage === 1}
+                        onClick={() => setContactReportsPage((prev) => Math.max(1, prev - 1))}
+                        title="Previous Page"
+                      >
+                        <ChevronLeft size={16} />
+                        <span style={{ marginLeft: '4px' }}>Prev</span>
+                      </button>
+
+                      {Array.from({ length: totalContactPages }, (_, i) => i + 1)
+                        .filter((page) => page === 1 || page === totalContactPages || Math.abs(page - currentContactPage) <= 1)
+                        .map((page, idx, arr) => {
+                          const showEllipsis = idx > 0 && page - arr[idx - 1] > 1;
+                          return (
+                            <React.Fragment key={page}>
+                              {showEllipsis && <span className="pagination-ellipsis">...</span>}
+                              <button
+                                className={`pagination-btn ${page === currentContactPage ? 'active' : ''}`}
+                                onClick={() => setContactReportsPage(page)}
+                              >
+                                {page}
+                              </button>
+                            </React.Fragment>
+                          );
+                        })}
+
+                      <button
+                        className="pagination-btn"
+                        disabled={currentContactPage === totalContactPages}
+                        onClick={() => setContactReportsPage((prev) => Math.min(totalContactPages, prev + 1))}
+                        title="Next Page"
+                      >
+                        <span style={{ marginRight: '4px' }}>Next</span>
+                        <ChevronRight size={16} />
+                      </button>
+                      <button
+                        className="pagination-btn"
+                        disabled={currentContactPage === totalContactPages}
+                        onClick={() => setContactReportsPage(totalContactPages)}
+                        title="Last Page"
+                      >
+                        <ChevronsRight size={16} />
+                      </button>
+                    </div>
                   </div>
                 </>
               );
@@ -1817,58 +2095,64 @@ export const Dashboard = ({ adminUser, onLogout }) => {
       {/* ========================================================================== */}
       {showReportModal && (
         <div className="modal-backdrop" onClick={() => setShowReportModal(false)}>
-          <div className="modal-container animate-slide-up" onClick={(e) => e.stopPropagation()}>
+          <div className="modal-container animate-slide-up" onClick={(e) => e.stopPropagation()} style={{ width: '92vw', maxWidth: '640px', boxSizing: 'border-box', overflowX: 'hidden' }}>
             
             {/* Modal Header */}
-            <div className="modal-header">
-              <div className="modal-title-box">
-                <div className="modal-icon-badge">
+            <div className="modal-header" style={{ width: '100%', maxWidth: '100%', boxSizing: 'border-box' }}>
+              <div className="modal-title-box" style={{ flex: 1, minWidth: 0 }}>
+                <div className="modal-icon-badge" style={{ flexShrink: 0 }}>
                   <ShieldAlert size={22} />
                 </div>
-                <div className="modal-title-text">
-                  <h3>Issue Official Warning to Reported User</h3>
-                  <p>Submit an official moderation warning to be displayed directly on the user's mobile app</p>
+                <div className="modal-title-text" style={{ flex: 1, minWidth: 0 }}>
+                  <h3 style={{ wordBreak: 'break-word', whiteSpace: 'normal', lineHeight: '1.25' }}>Issue Official Warning to Reported User</h3>
+                  <p style={{ wordBreak: 'break-word', whiteSpace: 'normal', lineHeight: '1.3' }}>Submit an official moderation warning to be displayed directly on the user's mobile app</p>
                 </div>
               </div>
-              <button type="button" className="modal-close-btn" onClick={() => setShowReportModal(false)}>
+              <button type="button" className="modal-close-btn" style={{ flexShrink: 0 }} onClick={() => setShowReportModal(false)}>
                 <X size={18} />
               </button>
             </div>
 
             {/* Modal Form */}
-            <form onSubmit={handleCreateReportSubmit} className="report-form">
+            <form onSubmit={handleCreateReportSubmit} className="report-form" style={{ width: '100%', maxWidth: '100%', boxSizing: 'border-box' }}>
               
               {/* Section 1: Reported User Selection */}
-              <div className="form-group">
-                <label>
-                  <AlertTriangle size={14} className="text-danger" /> Target Reported User (Who is receiving this warning?)
+              <div className="form-group" style={{ width: '100%', maxWidth: '100%', minWidth: 0, boxSizing: 'border-box' }}>
+                <label style={{ display: 'flex', alignItems: 'flex-start', gap: '6px', width: '100%', maxWidth: '100%', whiteSpace: 'normal', wordBreak: 'break-word', lineHeight: '1.35' }}>
+                  <AlertTriangle size={14} className="text-danger" style={{ flexShrink: 0, marginTop: '2px' }} />
+                  <span>Target Reported User (Who is receiving this warning?)</span>
                 </label>
-                <select
-                  className="form-select"
+                <ResponsiveSelect
+                  options={[
+                    { value: '', label: '-- Select Reported User from Database --' },
+                    ...users.map((u) => {
+                      const userName = u.name || u.firstName || u.email || 'User';
+                      const userContact = u.email || u.mobile || '';
+                      const displayContact = userContact.length > 20 ? userContact.substring(0, 18) + '...' : userContact;
+                      return {
+                        value: u._id || u.id,
+                        label: `${userName} ${displayContact ? `(${displayContact})` : ''}`,
+                      };
+                    }),
+                  ]}
                   value={reportFormData.reportedId}
-                  onChange={(e) => {
-                    const selId = e.target.value;
-                    const matched = users.find(u => (u._id || u.id) === selId);
+                  onChange={(selId) => {
+                    const matched = users.find((u) => (u._id || u.id) === selId);
                     setReportFormData({
                       ...reportFormData,
                       reportedId: selId,
-                      reportedName: matched ? (matched.name || matched.firstName) : e.target.value
+                      reportedName: matched ? (matched.name || matched.firstName) : selId,
                     });
                   }}
-                >
-                  <option value="">-- Select Reported User from Database --</option>
-                  {users.map((u) => (
-                    <option key={'trg_' + (u._id || u.id)} value={u._id || u.id}>
-                      {u.name || u.firstName || u.email} ({u.email || u.mobile || 'User'})
-                    </option>
-                  ))}
-                </select>
+                  isSearchable={true}
+                  placeholder="-- Search or Select Reported User --"
+                />
                 {!reportFormData.reportedId && (
                   <input
                     type="text"
                     placeholder="Or enter target user name..."
                     className="form-input"
-                    style={{ marginTop: '6px' }}
+                    style={{ marginTop: '6px', width: '100%', maxWidth: '100%', minWidth: 0, boxSizing: 'border-box', height: '38px', fontSize: '13px' }}
                     value={reportFormData.reportedName}
                     onChange={(e) => setReportFormData({ ...reportFormData, reportedName: e.target.value })}
                     required
@@ -1877,28 +2161,28 @@ export const Dashboard = ({ adminUser, onLogout }) => {
               </div>
 
               {/* Section 2: Violation Category & Severity */}
-              <div className="form-grid-2">
-                <div className="form-group">
-                  <label>
-                    <Flag size={14} /> Violation Category
+              <div className="form-grid-2" style={{ width: '100%', maxWidth: '100%', minWidth: 0, boxSizing: 'border-box' }}>
+                <div className="form-group" style={{ width: '100%', maxWidth: '100%', minWidth: 0, boxSizing: 'border-box' }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '6px', width: '100%', maxWidth: '100%' }}>
+                    <Flag size={14} style={{ flexShrink: 0 }} /> Violation Category
                   </label>
-                  <select
-                    className="form-select"
+                  <ResponsiveSelect
+                    options={[
+                      { value: 'Harassment / Offensive Behavior', label: 'Harassment / Offensive Behavior' },
+                      { value: 'Inappropriate Photos / Content', label: 'Inappropriate Photos / Content' },
+                      { value: 'Fake Profile / Impersonation', label: 'Fake Profile / Impersonation' },
+                      { value: 'Spam, Scam, or Fraud', label: 'Spam, Scam, or Commercial Fraud' },
+                      { value: 'Threatening Language / Hate Speech', label: 'Threatening Language / Hate Speech' },
+                      { value: 'Other Violation', label: 'Other Policy Violation' },
+                    ]}
                     value={reportFormData.category}
-                    onChange={(e) => setReportFormData({ ...reportFormData, category: e.target.value })}
-                  >
-                    <option value="Harassment / Offensive Behavior">Harassment / Offensive Behavior</option>
-                    <option value="Inappropriate Photos / Content">Inappropriate Photos / Content</option>
-                    <option value="Fake Profile / Impersonation">Fake Profile / Impersonation</option>
-                    <option value="Spam, Scam, or Fraud">Spam, Scam, or Commercial Fraud</option>
-                    <option value="Threatening Language / Hate Speech">Threatening Language / Hate Speech</option>
-                    <option value="Other Violation">Other Policy Violation</option>
-                  </select>
+                    onChange={(val) => setReportFormData({ ...reportFormData, category: val })}
+                  />
                 </div>
 
-                <div className="form-group">
-                  <label>Severity Level</label>
-                  <div className="severity-picker">
+                <div className="form-group" style={{ width: '100%', maxWidth: '100%', minWidth: 0, boxSizing: 'border-box' }}>
+                  <label style={{ width: '100%', maxWidth: '100%' }}>Severity Level</label>
+                  <div className="severity-picker" style={{ width: '100%', maxWidth: '100%', boxSizing: 'border-box' }}>
                     <button
                       type="button"
                       className={`severity-pill ${reportFormData.severity === 'low' ? 'selected-low' : ''}`}
@@ -1932,32 +2216,33 @@ export const Dashboard = ({ adminUser, onLogout }) => {
               </div>
 
               {/* Section 3: Detailed Description */}
-              <div className="form-group">
-                <label>
-                  <FileText size={14} /> Complaint Narrative & Evidence Details
+              <div className="form-group" style={{ width: '100%', maxWidth: '100%', minWidth: 0, boxSizing: 'border-box' }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '6px', width: '100%', maxWidth: '100%' }}>
+                  <FileText size={14} style={{ flexShrink: 0 }} /> Complaint Narrative & Evidence Details
                 </label>
                 <textarea
                   rows={3}
                   className="form-textarea"
+                  style={{ width: '100%', maxWidth: '100%', minWidth: 0, boxSizing: 'border-box', fontSize: '13px' }}
                   placeholder="Enter full details of the complaint submitted by the reporter (e.g. Chat harassment, inappropriate messages sent...)"
                   value={reportFormData.reason}
                   onChange={(e) => setReportFormData({ ...reportFormData, reason: e.target.value })}
                 />
               </div>
 
-              {/* Section 4: Initial Status */}
-              <div className="form-group">
-                <label>Initial Status Queue</label>
-                <select
-                  className="form-select"
+              {/* Section 4: Initial Status Queue */}
+              <div className="form-group" style={{ width: '100%', maxWidth: '100%', minWidth: 0, boxSizing: 'border-box' }}>
+                <label style={{ width: '100%', maxWidth: '100%' }}>Initial Status Queue</label>
+                <ResponsiveSelect
+                  options={[
+                    { value: 'pending', label: 'Pending Queue' },
+                    { value: 'reviewed', label: 'Working / Under Review' },
+                    { value: 'resolved', label: 'Resolved' },
+                    { value: 'dismissed', label: 'Dismissed' },
+                  ]}
                   value={reportFormData.status}
-                  onChange={(e) => setReportFormData({ ...reportFormData, status: e.target.value })}
-                >
-                  <option value="pending">Pending Queue</option>
-                  <option value="reviewed">Working / Under Review</option>
-                  <option value="resolved">Resolved</option>
-                  <option value="dismissed">Dismissed</option>
-                </select>
+                  onChange={(val) => setReportFormData({ ...reportFormData, status: val })}
+                />
               </div>
 
               {/* Modal Footer Actions */}
@@ -2247,6 +2532,307 @@ export const Dashboard = ({ adminUser, onLogout }) => {
                 Close
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================================== */}
+      {/* USER SUPPORT REPORT ISSUE DETAILS MODAL */}
+      {/* ========================================================================== */}
+      {viewContactModal.open && viewContactModal.report && (
+        <div className="modal-backdrop animate-fade-in" onClick={() => setViewContactModal({ open: false, report: null, adminNotes: '', savingNotes: false })}>
+          <div className="modal-container contact-details-modal animate-slide-up" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '680px', width: '92%' }}>
+            
+            {/* Modal Header */}
+            <div className="modal-header" style={{ borderBottom: '1.5px solid #f1f5f9', paddingBottom: '16px' }}>
+              <div className="modal-title-box">
+                <div className="modal-icon-badge" style={{ backgroundColor: '#fff0f5', color: '#FE3C72' }}>
+                  <MessageSquare size={22} />
+                </div>
+                <div className="modal-title-text">
+                  <h3 style={{ fontSize: '18px', fontWeight: '800', color: '#0f172a', margin: 0 }}>
+                    User Support Report Details
+                  </h3>
+                  <p style={{ fontSize: '12.5px', color: '#64748b', margin: '2px 0 0 0' }}>
+                    Full submission info for ticket #{viewContactModal.report._id?.substring(viewContactModal.report._id.length - 8) || viewContactModal.report._id}
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                className="modal-close-btn"
+                onClick={() => setViewContactModal({ open: false, report: null, adminNotes: '', savingNotes: false })}
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Modal Content Body */}
+            <div className="modal-body contact-modal-body" style={{ padding: '20px 0', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+              
+              {/* Row 1: Sender Profile & Status Bar */}
+              <div className="contact-modal-info-grid" style={{ backgroundColor: '#f8fafc', padding: '16px', borderRadius: '14px', border: '1px solid #e2e8f0' }}>
+                <div>
+                  <span style={{ fontSize: '11px', fontWeight: '700', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.5px', display: 'block', marginBottom: '8px' }}>
+                    Sender Details
+                  </span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                    <div style={{
+                      width: '42px',
+                      height: '42px',
+                      borderRadius: '50%',
+                      backgroundColor: getAvatarColor(viewContactModal.report.name),
+                      color: '#ffffff',
+                      fontWeight: '800',
+                      fontSize: '16px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      flexShrink: 0,
+                    }}>
+                      {(viewContactModal.report.name || 'G')[0].toUpperCase()}
+                    </div>
+                    <div>
+                      <div style={{ fontSize: '15px', fontWeight: '800', color: '#0f172a' }}>
+                        {viewContactModal.report.name || 'Guest User'}
+                      </div>
+                      <div style={{ fontSize: '11.5px', color: '#64748b', marginTop: '2px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                        <Calendar size={12} color="#FE3C72" />
+                        <span>Submitted: <strong>{formatDateTime(viewContactModal.report.createdAt)}</strong></span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div>
+                  <span style={{ fontSize: '11px', fontWeight: '700', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.5px', display: 'block', marginBottom: '8px' }}>
+                    Ticket Status & Action
+                  </span>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                      <ResponsiveSelect
+                        options={[
+                          { value: 'pending', label: 'Pending' },
+                          { value: 'in-progress', label: 'In Progress' },
+                          { value: 'resolved', label: 'Resolved' },
+                        ]}
+                        value={viewContactModal.report.status || 'pending'}
+                        onChange={(val) => handleModalStatusChange(val)}
+                        style={{ flex: 1, minWidth: '140px' }}
+                      />
+                      {viewContactModal.report.status === 'resolved' ? (
+                        <span className="status-pill pill-resolved">Resolved</span>
+                      ) : viewContactModal.report.status === 'in-progress' ? (
+                        <span className="status-pill pill-reviewed">In Progress</span>
+                      ) : (
+                        <span className="status-pill pill-pending">Pending</span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Row 2: Contact Info Grid */}
+              <div className="contact-modal-info-grid">
+                
+                {/* Email Info Card */}
+                <div style={{ padding: '14px', backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '12px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <span style={{ fontSize: '11.5px', fontWeight: '700', color: '#64748b', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                      <Mail size={14} color="#3b82f6" /> Email Address
+                    </span>
+                    {viewContactModal.report.email && (
+                      <button
+                        type="button"
+                        onClick={() => handleCopyText(viewContactModal.report.email, 'email')}
+                        style={{ background: 'none', border: 'none', color: '#3b82f6', cursor: 'pointer', fontSize: '11px', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '3px' }}
+                      >
+                        {copiedField === 'email' ? <Check size={12} color="#10b981" /> : <Copy size={12} />}
+                        <span>{copiedField === 'email' ? 'Copied!' : 'Copy'}</span>
+                      </button>
+                    )}
+                  </div>
+                  {viewContactModal.report.email ? (
+                    <a
+                      href={`mailto:${viewContactModal.report.email}`}
+                      style={{ fontSize: '13.5px', fontWeight: '700', color: '#2563eb', textDecoration: 'none', wordBreak: 'break-all' }}
+                    >
+                      {viewContactModal.report.email}
+                    </a>
+                  ) : (
+                    <span style={{ fontSize: '13px', color: '#94a3b8', fontStyle: 'italic' }}>No email provided</span>
+                  )}
+                </div>
+
+                {/* Phone Info Card */}
+                <div style={{ padding: '14px', backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '12px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <span style={{ fontSize: '11.5px', fontWeight: '700', color: '#64748b', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                      <Phone size={14} color="#10b981" /> Phone Number
+                    </span>
+                    {viewContactModal.report.phone && (
+                      <button
+                        type="button"
+                        onClick={() => handleCopyText(viewContactModal.report.phone, 'phone')}
+                        style={{ background: 'none', border: 'none', color: '#10b981', cursor: 'pointer', fontSize: '11px', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '3px' }}
+                      >
+                        {copiedField === 'phone' ? <Check size={12} color="#10b981" /> : <Copy size={12} />}
+                        <span>{copiedField === 'phone' ? 'Copied!' : 'Copy'}</span>
+                      </button>
+                    )}
+                  </div>
+                  {viewContactModal.report.phone ? (
+                    <a
+                      href={`tel:${viewContactModal.report.phone}`}
+                      style={{ fontSize: '13.5px', fontWeight: '700', color: '#0f172a', textDecoration: 'none' }}
+                    >
+                      {viewContactModal.report.phone}
+                    </a>
+                  ) : (
+                    <span style={{ fontSize: '13px', color: '#94a3b8' }}>No phone provided</span>
+                  )}
+                </div>
+
+              </div>
+
+              {/* Row 3: Subject / Topic */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                <span style={{ fontSize: '12px', fontWeight: '700', color: '#475569' }}>
+                  Subject / Topic Header
+                </span>
+                <div style={{
+                  padding: '10px 14px',
+                  backgroundColor: '#fff0f5',
+                  border: '1px solid #fbcfe8',
+                  borderRadius: '10px',
+                  fontSize: '13.5px',
+                  fontWeight: '700',
+                  color: '#be185d',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                }}>
+                  <HelpCircle size={16} color="#FE3C72" />
+                  <span>{viewContactModal.report.subject || 'General Inquiry / App Problem'}</span>
+                </div>
+              </div>
+
+              {/* Row 4: Submitted Issue Description (Full Message) */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <span style={{ fontSize: '12.5px', fontWeight: '800', color: '#0f172a', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <FileText size={15} color="#FE3C72" /> Complete User Submitted Issue Description
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => handleCopyText(viewContactModal.report.message, 'message')}
+                    style={{ background: '#f1f5f9', border: '1px solid #cbd5e1', padding: '4px 10px', borderRadius: '6px', color: '#475569', cursor: 'pointer', fontSize: '11.5px', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '4px' }}
+                  >
+                    {copiedField === 'message' ? <Check size={12} color="#10b981" /> : <Copy size={12} />}
+                    <span>{copiedField === 'message' ? 'Copied!' : 'Copy Message'}</span>
+                  </button>
+                </div>
+
+                <div
+                  style={{
+                    backgroundColor: '#ffffff',
+                    border: '1.5px solid #e2e8f0',
+                    borderRadius: '12px',
+                    padding: '16px',
+                    fontSize: '14px',
+                    color: '#1e293b',
+                    lineHeight: '1.6',
+                    maxHeight: '220px',
+                    overflowY: 'auto',
+                    whiteSpace: 'pre-wrap',
+                    wordBreak: 'break-word',
+                    boxShadow: 'inset 0 1px 3px rgba(0, 0, 0, 0.02)',
+                  }}
+                >
+                  {viewContactModal.report.message || 'No description content.'}
+                </div>
+              </div>
+
+              {/* Row 5: Admin Resolution & Internal Notes */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '4px' }}>
+                <span style={{ fontSize: '12.5px', fontWeight: '700', color: '#334155' }}>
+                  Admin Internal Resolution Notes (Optional)
+                </span>
+                <textarea
+                  rows={3}
+                  placeholder="Add internal notes about how this ticket was handled or resolution response..."
+                  value={viewContactModal.adminNotes}
+                  onChange={(e) => setViewContactModal((prev) => ({ ...prev, adminNotes: e.target.value }))}
+                  style={{
+                    width: '100%',
+                    padding: '12px',
+                    borderRadius: '10px',
+                    border: '1.5px solid #cbd5e1',
+                    fontSize: '13px',
+                    fontFamily: 'inherit',
+                    color: '#0f172a',
+                    outline: 'none',
+                    resize: 'vertical',
+                  }}
+                />
+                <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                  <button
+                    type="button"
+                    className="btn-create-report"
+                    disabled={viewContactModal.savingNotes}
+                    onClick={handleSaveContactNotes}
+                    style={{ padding: '6px 14px', fontSize: '12.5px' }}
+                  >
+                    {viewContactModal.savingNotes ? (
+                      <span>Saving Notes...</span>
+                    ) : (
+                      <>
+                        <Save size={14} />
+                        <span>Save Admin Notes</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
+
+            </div>
+
+            {/* Modal Footer */}
+            <div className="modal-footer" style={{ borderTop: '1.5px solid #f1f5f9', paddingTop: '14px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <button
+                type="button"
+                onClick={() => {
+                  handleDeleteContactReport(viewContactModal.report._id);
+                  setViewContactModal({ open: false, report: null, adminNotes: '', savingNotes: false });
+                }}
+                style={{
+                  padding: '8px 16px',
+                  borderRadius: '10px',
+                  border: '1px solid #fee2e2',
+                  backgroundColor: '#fff1f2',
+                  color: '#ef4444',
+                  fontWeight: '700',
+                  fontSize: '13px',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                }}
+              >
+                <Trash2 size={15} />
+                <span>Delete Ticket</span>
+              </button>
+
+              <button
+                type="button"
+                className="btn-primary-submit"
+                onClick={() => setViewContactModal({ open: false, report: null, adminNotes: '', savingNotes: false })}
+                style={{ padding: '8px 24px' }}
+              >
+                Close
+              </button>
+            </div>
+
           </div>
         </div>
       )}

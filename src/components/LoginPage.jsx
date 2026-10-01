@@ -107,7 +107,7 @@ export const LoginPage = ({ onLoginSuccess }) => {
                   <input
                     type="email"
                     className="form-input"
-                    placeholder="email"
+                    placeholder="Email Address"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     required
@@ -123,7 +123,7 @@ export const LoginPage = ({ onLoginSuccess }) => {
                   <input
                     type={showPassword ? 'text' : 'password'}
                     className="form-input"
-                    placeholder="password"
+                    placeholder="Password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     required
@@ -157,16 +157,31 @@ export const LoginPage = ({ onLoginSuccess }) => {
             </form>
 
             {/* Quick Demo Fill Shortcut */}
-            {/*<div className="quick-fill-container">
+            <div className="quick-fill-container" style={{ marginTop: '14px', textCenter: 'center' }}>
               <button
                 type="button"
                 className="quick-fill-btn"
                 onClick={handleQuickFill}
+                style={{
+                  width: '100%',
+                  padding: '8px 12px',
+                  borderRadius: '8px',
+                  border: '1px dashed #cbd5e1',
+                  backgroundColor: '#f8fafc',
+                  color: '#475569',
+                  fontSize: '12.5px',
+                  fontWeight: '600',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '6px',
+                }}
               >
-                <ShieldCheck size={14} style={{ marginRight: '6px' }} />
-                Use Default Admin Credentials
+                <ShieldCheck size={14} color="#ff4d6d" />
+                <span>Auto-fill Default Admin Credentials</span>
               </button>
-            </div>*/}
+            </div>
 
             {/* Footer security note */}
             <div className="login-footer-text">

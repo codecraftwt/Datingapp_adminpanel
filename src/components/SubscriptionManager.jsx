@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import ResponsiveSelect from './ResponsiveSelect';
 import {
   CreditCard,
   PlusCircle,
@@ -266,54 +267,30 @@ export const SubscriptionManager = () => {
   return (
     <div className="subscription-manager-container animate-fade-in">
       {/* Top Header / Action Bar */}
-      <div className="manager-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
-        <div>
-          <h2 style={{ fontSize: '24px', fontWeight: 700, color: '#1e293b', display: 'flex', alignItems: 'center', gap: '10px' }}>
+      <div className="subscription-manager-header">
+        <div className="subscription-manager-title-box">
+          <h2 className="subscription-manager-title">
             <CreditCard size={28} color="#ff4d6d" />
             <span>Subscription & Feature Management</span>
           </h2>
-          <p style={{ color: '#64748b', fontSize: '14px', marginTop: '4px' }}>
+          <p className="subscription-manager-sub">
             Configure dynamic plans, pricing (USD), feature limitations, and sync with Stripe & the mobile app.
           </p>
         </div>
 
-        <div style={{ display: 'flex', gap: '12px' }}>
+        <div className="subscription-manager-actions">
           <button
-            className="btn-refresh"
+            className="sub-btn-refresh"
             onClick={loadData}
             title="Reload live plans"
-            style={{
-              padding: '10px 16px',
-              borderRadius: '10px',
-              border: '1px solid #e2e8f0',
-              backgroundColor: '#fff',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-              fontWeight: 600,
-              color: '#475569',
-            }}
           >
             <RefreshCw size={16} className={loading ? 'spin-icon' : ''} />
             <span>Refresh</span>
           </button>
 
           <button
+            className="sub-btn-create"
             onClick={openCreatePlanModal}
-            style={{
-              padding: '10px 20px',
-              borderRadius: '10px',
-              border: 'none',
-              background: 'linear-gradient(135deg, #ff4d6d 0%, #e02850 100%)',
-              color: '#fff',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-              fontWeight: 700,
-              boxShadow: '0 4px 14px rgba(255, 77, 109, 0.35)',
-            }}
           >
             <PlusCircle size={18} />
             <span>Create Subscription Plan</span>
@@ -345,7 +322,7 @@ export const SubscriptionManager = () => {
             </button>
           </div>
         ) : (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '20px' }}>
+          <div className="plans-cards-grid">
             {plans.map((plan) => {
               const swipeFeat = plan.features?.find((f) => f.featureKey === 'SWIPES');
               const superFeat = plan.features?.find((f) => f.featureKey === 'SUPER_LIKES');
@@ -559,6 +536,7 @@ export const SubscriptionManager = () => {
       {/* MODAL 1: CREATE / EDIT PLAN FORM */}
       {showPlanModal && (
         <div
+          className="sub-modal-overlay"
           style={{
             position: 'fixed',
             top: 0,
@@ -571,10 +549,10 @@ export const SubscriptionManager = () => {
             alignItems: 'center',
             justifyContent: 'center',
             zIndex: 9999,
-            padding: '20px',
           }}
         >
           <div
+            className="modal-container sub-modal-container"
             style={{
               backgroundColor: '#ffffff',
               borderRadius: '20px',
@@ -582,7 +560,6 @@ export const SubscriptionManager = () => {
               maxWidth: '650px',
               maxHeight: '90vh',
               overflowY: 'auto',
-              padding: '30px',
               boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
               position: 'relative',
             }}
@@ -605,7 +582,7 @@ export const SubscriptionManager = () => {
 
             <form onSubmit={handlePlanSubmit}>
               {/* Plan Name & Plan Key */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' }}>
+              <div className="sub-form-grid-2">
                 <div>
                   <label style={{ display: 'block', fontSize: '13px', fontWeight: 700, color: '#334155', marginBottom: '6px' }}>
                     Plan Name *
@@ -637,7 +614,7 @@ export const SubscriptionManager = () => {
               </div>
 
               {/* Price & Currency (USD) */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 0.8fr 1fr', gap: '16px', marginBottom: '16px' }}>
+              <div className="sub-form-grid-3">
                 <div>
                   <label style={{ display: 'block', fontSize: '13px', fontWeight: 700, color: '#334155', marginBottom: '6px' }}>
                     Price Amount *
@@ -672,21 +649,21 @@ export const SubscriptionManager = () => {
                   <label style={{ display: 'block', fontSize: '13px', fontWeight: 700, color: '#334155', marginBottom: '6px' }}>
                     Billing Cycle
                   </label>
-                  <select
+                  <ResponsiveSelect
+                    options={[
+                      { value: 'monthly', label: 'Monthly' },
+                      { value: 'yearly', label: 'Yearly' },
+                      { value: 'quarterly', label: 'Quarterly' },
+                      { value: 'free', label: 'Free' },
+                    ]}
                     value={formData.billingCycle}
-                    onChange={(e) => setFormData({ ...formData, billingCycle: e.target.value })}
-                    style={{ width: '100%', padding: '10px 14px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '14px' }}
-                  >
-                    <option value="monthly">Monthly</option>
-                    <option value="yearly">Yearly</option>
-                    <option value="quarterly">Quarterly</option>
-                    <option value="free">Free</option>
-                  </select>
+                    onChange={(val) => setFormData({ ...formData, billingCycle: val })}
+                  />
                 </div>
               </div>
 
               {/* Highlight Badge & Description */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.5fr', gap: '16px', marginBottom: '20px' }}>
+              <div className="sub-form-grid-badge">
                 <div>
                   <label style={{ display: 'block', fontSize: '13px', fontWeight: 700, color: '#334155', marginBottom: '6px' }}>
                     Marketing Badge
@@ -722,10 +699,10 @@ export const SubscriptionManager = () => {
                 </h4>
 
                 {/* 1. Swipe Cards */}
-                <div style={{ marginBottom: '16px', padding: '12px', backgroundColor: '#fff', borderRadius: '10px', border: '1px solid #e2e8f0' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: formData.includeSwipes ? '10px' : '0' }}>
-                    <div>
-                      <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontWeight: 700, fontSize: '14px', color: '#1e293b' }}>
+                <div className="sub-feature-card">
+                  <div className="sub-feature-header" style={{ marginBottom: formData.includeSwipes ? '8px' : '0' }}>
+                    <div className="sub-feature-title-group">
+                      <label className="sub-feature-title-label">
                         <input
                           type="checkbox"
                           checked={formData.includeSwipes}
@@ -734,16 +711,16 @@ export const SubscriptionManager = () => {
                         <Flame size={16} color="#ff4d6d" />
                         <span>Include Swipe Cards Feature</span>
                       </label>
-                      <p style={{ fontSize: '12px', color: '#64748b', marginLeft: '22px' }}>Configure swipe limits or unlimited swipes for this tier.</p>
+                      <p className="sub-feature-desc">Configure swipe limits or unlimited swipes for this tier.</p>
                     </div>
 
-                    <span style={{ fontSize: '12px', fontWeight: 700, color: formData.includeSwipes ? '#059669' : '#94a3b8' }}>
+                    <span className="sub-feature-status-pill" style={{ color: formData.includeSwipes ? '#059669' : '#94a3b8' }}>
                       {formData.includeSwipes ? 'Enabled' : 'Disabled'}
                     </span>
                   </div>
 
                   {formData.includeSwipes && (
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginLeft: '22px', paddingTop: '8px', borderTop: '1px dashed #f1f5f9' }}>
+                    <div className="sub-feature-subrow">
                       <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', cursor: 'pointer', fontWeight: 600 }}>
                         <input
                           type="checkbox"
@@ -754,16 +731,16 @@ export const SubscriptionManager = () => {
                       </label>
 
                       {!formData.isUnlimitedSwipes && (
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <div className="sub-limit-input-group">
                           <input
                             type="number"
                             min="1"
                             placeholder="Limit/day"
                             value={formData.swipeLimit}
                             onChange={(e) => setFormData({ ...formData, swipeLimit: e.target.value })}
-                            style={{ width: '80px', padding: '6px 10px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '13px' }}
+                            className="sub-limit-input"
                           />
-                          <span style={{ fontSize: '12px', color: '#64748b' }}>swipes/day</span>
+                          <span className="sub-limit-unit-text">swipes/day</span>
                         </div>
                       )}
                     </div>
@@ -771,10 +748,10 @@ export const SubscriptionManager = () => {
                 </div>
 
                 {/* 2. Super Likes */}
-                <div style={{ marginBottom: '16px', padding: '12px', backgroundColor: '#fff', borderRadius: '10px', border: '1px solid #e2e8f0' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: formData.includeSuperLikes ? '10px' : '0' }}>
-                    <div>
-                      <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontWeight: 700, fontSize: '14px', color: '#1e293b' }}>
+                <div className="sub-feature-card">
+                  <div className="sub-feature-header" style={{ marginBottom: formData.includeSuperLikes ? '8px' : '0' }}>
+                    <div className="sub-feature-title-group">
+                      <label className="sub-feature-title-label">
                         <input
                           type="checkbox"
                           checked={formData.includeSuperLikes}
@@ -783,67 +760,73 @@ export const SubscriptionManager = () => {
                         <Star size={16} color="#fbbf24" fill="#fbbf24" />
                         <span>Include Super Likes Feature</span>
                       </label>
-                      <p style={{ fontSize: '12px', color: '#64748b', marginLeft: '22px' }}>Give users daily Super Likes to stand out.</p>
+                      <p className="sub-feature-desc">Give users daily Super Likes to stand out.</p>
                     </div>
 
-                    <span style={{ fontSize: '12px', fontWeight: 700, color: formData.includeSuperLikes ? '#059669' : '#94a3b8' }}>
+                    <span className="sub-feature-status-pill" style={{ color: formData.includeSuperLikes ? '#059669' : '#94a3b8' }}>
                       {formData.includeSuperLikes ? 'Enabled' : 'Disabled'}
                     </span>
                   </div>
 
                   {formData.includeSuperLikes && (
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginLeft: '22px', paddingTop: '8px', borderTop: '1px dashed #f1f5f9' }}>
-                      <input
-                        type="number"
-                        min="1"
-                        placeholder="Limit/day"
-                        value={formData.superLikeLimit}
-                        onChange={(e) => setFormData({ ...formData, superLikeLimit: e.target.value })}
-                        style={{ width: '80px', padding: '6px 10px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '13px' }}
-                      />
-                      <span style={{ fontSize: '12px', color: '#64748b' }}>Super Likes per day</span>
+                    <div className="sub-feature-subrow">
+                      <div className="sub-limit-input-group">
+                        <input
+                          type="number"
+                          min="1"
+                          placeholder="Limit/day"
+                          value={formData.superLikeLimit}
+                          onChange={(e) => setFormData({ ...formData, superLikeLimit: e.target.value })}
+                          className="sub-limit-input"
+                        />
+                        <span className="sub-limit-unit-text">Super Likes per day</span>
+                      </div>
                     </div>
                   )}
                 </div>
 
                 {/* 3. Search Functionality */}
-                <div style={{ marginBottom: '16px', padding: '12px', backgroundColor: '#fff', borderRadius: '10px', border: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <div>
-                    <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontWeight: 700, fontSize: '14px', color: '#1e293b' }}>
-                      <input
-                        type="checkbox"
-                        checked={formData.searchAllowed}
-                        onChange={(e) => setFormData({ ...formData, searchAllowed: e.target.checked })}
-                      />
-                      <Search size={16} color="#3b82f6" />
-                      <span>Include Advanced Search Filters</span>
-                    </label>
-                    <p style={{ fontSize: '12px', color: '#64748b', marginLeft: '22px' }}>Unlock filters for Profession, Education, Zodiac, Lifestyle habits.</p>
-                  </div>
+                <div className="sub-feature-card">
+                  <div className="sub-feature-header">
+                    <div className="sub-feature-title-group">
+                      <label className="sub-feature-title-label">
+                        <input
+                          type="checkbox"
+                          checked={formData.searchAllowed}
+                          onChange={(e) => setFormData({ ...formData, searchAllowed: e.target.checked })}
+                        />
+                        <Search size={16} color="#3b82f6" />
+                        <span>Include Advanced Search Filters</span>
+                      </label>
+                      <p className="sub-feature-desc">Unlock filters for Profession, Education, Zodiac, Lifestyle habits.</p>
+                    </div>
 
-                  <span style={{ fontSize: '12px', fontWeight: 700, color: formData.searchAllowed ? '#059669' : '#94a3b8' }}>
-                    {formData.searchAllowed ? 'Unlocked' : 'Locked'}
-                  </span>
+                    <span className="sub-feature-status-pill" style={{ color: formData.searchAllowed ? '#059669' : '#94a3b8' }}>
+                      {formData.searchAllowed ? 'Unlocked' : 'Locked'}
+                    </span>
+                  </div>
                 </div>
 
                 {/* 4. Likes (See Who Liked You) */}
-                <div style={{ padding: '12px', backgroundColor: '#fff', borderRadius: '10px', border: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <div>
-                    <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontWeight: 700, fontSize: '14px', color: '#1e293b' }}>
-                      <input
-                        type="checkbox"
-                        checked={formData.likesAllowed}
-                        onChange={(e) => setFormData({ ...formData, likesAllowed: e.target.checked })}
-                      />
-                      <Heart size={16} color="#ec4899" fill="#ec4899" />
-                      <span>Include "See Who Liked You"</span>
-                    </label>
-                    <p style={{ fontSize: '12px', color: '#64748b', marginLeft: '22px' }}>Unblur full profiles and photos of users who swiped right.</p>
-                  </div>
+                <div className="sub-feature-card">
+                  <div className="sub-feature-header">
+                    <div className="sub-feature-title-group">
+                      <label className="sub-feature-title-label">
+                        <input
+                          type="checkbox"
+                          checked={formData.likesAllowed}
+                          onChange={(e) => setFormData({ ...formData, likesAllowed: e.target.checked })}
+                        />
+                        <Heart size={16} color="#ec4899" fill="#ec4899" />
+                        <span>Include "See Who Liked You"</span>
+                      </label>
+                      <p className="sub-feature-desc">Unblur full profiles and photos of users who swiped right.</p>
+                    </div>
 
-                  <span style={{ fontSize: '12px', fontWeight: 700, color: formData.likesAllowed ? '#059669' : '#94a3b8' }}>
-                    {formData.likesAllowed ? 'Unlocked & Revealed' : 'Blurred'}
-                  </span>
+                    <span className="sub-feature-status-pill" style={{ color: formData.likesAllowed ? '#059669' : '#94a3b8' }}>
+                      {formData.likesAllowed ? 'Unlocked & Revealed' : 'Blurred'}
+                    </span>
+                  </div>
                 </div>
               </div>
 
@@ -869,7 +852,7 @@ export const SubscriptionManager = () => {
               )}
 
               {/* Modal Buttons */}
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
+              <div className="sub-modal-footer">
                 <button
                   type="button"
                   onClick={() => setShowPlanModal(false)}
