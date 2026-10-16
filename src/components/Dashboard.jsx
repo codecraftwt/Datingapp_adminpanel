@@ -2095,30 +2095,30 @@ export const Dashboard = ({ adminUser, onLogout }) => {
       {/* ========================================================================== */}
       {showReportModal && (
         <div className="modal-backdrop" onClick={() => setShowReportModal(false)}>
-          <div className="modal-container animate-slide-up" onClick={(e) => e.stopPropagation()} style={{ width: '92vw', maxWidth: '640px', boxSizing: 'border-box', overflowX: 'hidden' }}>
+          <div className="modal-container animate-slide-up" onClick={(e) => e.stopPropagation()} style={{ width: '92vw', maxWidth: '640px', boxSizing: 'border-box' }}>
             
             {/* Modal Header */}
-            <div className="modal-header" style={{ width: '100%', maxWidth: '100%', boxSizing: 'border-box' }}>
-              <div className="modal-title-box" style={{ flex: 1, minWidth: 0 }}>
-                <div className="modal-icon-badge" style={{ flexShrink: 0 }}>
+            <div className="modal-header">
+              <div className="modal-title-box">
+                <div className="modal-icon-badge">
                   <ShieldAlert size={22} />
                 </div>
-                <div className="modal-title-text" style={{ flex: 1, minWidth: 0 }}>
-                  <h3 style={{ wordBreak: 'break-word', whiteSpace: 'normal', lineHeight: '1.25' }}>Issue Official Warning to Reported User</h3>
-                  <p style={{ wordBreak: 'break-word', whiteSpace: 'normal', lineHeight: '1.3' }}>Submit an official moderation warning to be displayed directly on the user's mobile app</p>
+                <div className="modal-title-text">
+                  <h3>Issue Official Warning to Reported User</h3>
+                  <p>Submit an official moderation warning to be displayed directly on the user's mobile app</p>
                 </div>
               </div>
-              <button type="button" className="modal-close-btn" style={{ flexShrink: 0 }} onClick={() => setShowReportModal(false)}>
+              <button type="button" className="modal-close-btn" onClick={() => setShowReportModal(false)}>
                 <X size={18} />
               </button>
             </div>
 
             {/* Modal Form */}
-            <form onSubmit={handleCreateReportSubmit} className="report-form" style={{ width: '100%', maxWidth: '100%', boxSizing: 'border-box' }}>
+            <form onSubmit={handleCreateReportSubmit} className="report-form">
               
               {/* Section 1: Reported User Selection */}
-              <div className="form-group" style={{ width: '100%', maxWidth: '100%', minWidth: 0, boxSizing: 'border-box' }}>
-                <label style={{ display: 'flex', alignItems: 'flex-start', gap: '6px', width: '100%', maxWidth: '100%', whiteSpace: 'normal', wordBreak: 'break-word', lineHeight: '1.35' }}>
+              <div className="form-group">
+                <label style={{ display: 'flex', alignItems: 'flex-start', gap: '6px' }}>
                   <AlertTriangle size={14} className="text-danger" style={{ flexShrink: 0, marginTop: '2px' }} />
                   <span>Target Reported User (Who is receiving this warning?)</span>
                 </label>
@@ -2152,7 +2152,7 @@ export const Dashboard = ({ adminUser, onLogout }) => {
                     type="text"
                     placeholder="Or enter target user name..."
                     className="form-input"
-                    style={{ marginTop: '6px', width: '100%', maxWidth: '100%', minWidth: 0, boxSizing: 'border-box', height: '38px', fontSize: '13px' }}
+                    style={{ marginTop: '6px' }}
                     value={reportFormData.reportedName}
                     onChange={(e) => setReportFormData({ ...reportFormData, reportedName: e.target.value })}
                     required
@@ -2161,9 +2161,9 @@ export const Dashboard = ({ adminUser, onLogout }) => {
               </div>
 
               {/* Section 2: Violation Category & Severity */}
-              <div className="form-grid-2" style={{ width: '100%', maxWidth: '100%', minWidth: 0, boxSizing: 'border-box' }}>
-                <div className="form-group" style={{ width: '100%', maxWidth: '100%', minWidth: 0, boxSizing: 'border-box' }}>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: '6px', width: '100%', maxWidth: '100%' }}>
+              <div className="form-grid-2">
+                <div className="form-group">
+                  <label>
                     <Flag size={14} style={{ flexShrink: 0 }} /> Violation Category
                   </label>
                   <ResponsiveSelect
@@ -2180,9 +2180,9 @@ export const Dashboard = ({ adminUser, onLogout }) => {
                   />
                 </div>
 
-                <div className="form-group" style={{ width: '100%', maxWidth: '100%', minWidth: 0, boxSizing: 'border-box' }}>
-                  <label style={{ width: '100%', maxWidth: '100%' }}>Severity Level</label>
-                  <div className="severity-picker" style={{ width: '100%', maxWidth: '100%', boxSizing: 'border-box' }}>
+                <div className="form-group">
+                  <label>Severity Level</label>
+                  <div className="severity-picker">
                     <button
                       type="button"
                       className={`severity-pill ${reportFormData.severity === 'low' ? 'selected-low' : ''}`}
@@ -2216,14 +2216,13 @@ export const Dashboard = ({ adminUser, onLogout }) => {
               </div>
 
               {/* Section 3: Detailed Description */}
-              <div className="form-group" style={{ width: '100%', maxWidth: '100%', minWidth: 0, boxSizing: 'border-box' }}>
-                <label style={{ display: 'flex', alignItems: 'center', gap: '6px', width: '100%', maxWidth: '100%' }}>
+              <div className="form-group">
+                <label>
                   <FileText size={14} style={{ flexShrink: 0 }} /> Complaint Narrative & Evidence Details
                 </label>
                 <textarea
                   rows={3}
                   className="form-textarea"
-                  style={{ width: '100%', maxWidth: '100%', minWidth: 0, boxSizing: 'border-box', fontSize: '13px' }}
                   placeholder="Enter full details of the complaint submitted by the reporter (e.g. Chat harassment, inappropriate messages sent...)"
                   value={reportFormData.reason}
                   onChange={(e) => setReportFormData({ ...reportFormData, reason: e.target.value })}
@@ -2231,8 +2230,8 @@ export const Dashboard = ({ adminUser, onLogout }) => {
               </div>
 
               {/* Section 4: Initial Status Queue */}
-              <div className="form-group" style={{ width: '100%', maxWidth: '100%', minWidth: 0, boxSizing: 'border-box' }}>
-                <label style={{ width: '100%', maxWidth: '100%' }}>Initial Status Queue</label>
+              <div className="form-group">
+                <label>Initial Status Queue</label>
                 <ResponsiveSelect
                   options={[
                     { value: 'pending', label: 'Pending Queue' },
@@ -2268,24 +2267,27 @@ export const Dashboard = ({ adminUser, onLogout }) => {
 
       {/* Account Status (Activate / Deactivate) Confirmation Modal */}
       {statusModal.open && statusModal.user && (
-        <div className="modal-backdrop">
-          <div className="modal-content animate-scale-up" style={{ maxWidth: '440px' }}>
+        <div className="modal-backdrop" onClick={() => setStatusModal({ open: false, user: null, newStatus: false, reason: '', submitting: false })}>
+          <div className="modal-content status-modal-content animate-scale-up" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flex: 1, minWidth: 0 }}>
                 {statusModal.newStatus ? (
-                  <div style={{ padding: '8px', borderRadius: '50%', backgroundColor: 'rgba(16, 185, 129, 0.15)', color: '#10B981' }}>
+                  <div style={{ padding: '8px', borderRadius: '50%', backgroundColor: 'rgba(16, 185, 129, 0.15)', color: '#10B981', flexShrink: 0 }}>
                     <UserCheck size={22} />
                   </div>
                 ) : (
-                  <div style={{ padding: '8px', borderRadius: '50%', backgroundColor: 'rgba(239, 68, 68, 0.15)', color: '#EF4444' }}>
+                  <div style={{ padding: '8px', borderRadius: '50%', backgroundColor: 'rgba(239, 68, 68, 0.15)', color: '#EF4444', flexShrink: 0 }}>
                     <UserX size={22} />
                   </div>
                 )}
-                <h3 className="modal-title" style={{ fontSize: '18px', fontWeight: '700' }}>
-                  {statusModal.newStatus ? 'Activate User Account' : 'Deactivate User Account'}
-                </h3>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <h3 className="modal-title" style={{ fontSize: '18px', fontWeight: '700', margin: 0, wordBreak: 'break-word', lineHeight: '1.25' }}>
+                    {statusModal.newStatus ? 'Activate User Account' : 'Deactivate User Account'}
+                  </h3>
+                </div>
               </div>
               <button 
+                type="button"
                 className="close-btn" 
                 onClick={() => setStatusModal({ open: false, user: null, newStatus: false, reason: '', submitting: false })}
               >
@@ -2293,8 +2295,8 @@ export const Dashboard = ({ adminUser, onLogout }) => {
               </button>
             </div>
 
-            <div className="modal-body" style={{ padding: '16px 0' }}>
-              <p style={{ color: '#1e293b', fontSize: '14px', lineHeight: '1.5', marginBottom: '14px' }}>
+            <div className="modal-body status-modal-body">
+              <p style={{ color: '#1e293b', fontSize: '14px', lineHeight: '1.5', marginBottom: '14px', wordBreak: 'break-word' }}>
                 {statusModal.newStatus ? (
                   <>Are you sure you want to <strong>activate</strong> the account for <span style={{ color: '#ff4d6d', fontWeight: 'bold' }}>{statusModal.user.name || statusModal.user.firstName || 'this user'}</span>? They will be allowed to log in and explore the app again.</>
                 ) : (
@@ -2317,7 +2319,7 @@ export const Dashboard = ({ adminUser, onLogout }) => {
               )}
             </div>
 
-            <div className="modal-footer" style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
+            <div className="modal-footer status-modal-footer">
               <button
                 type="button"
                 className="btn-secondary-cancel"
@@ -2349,23 +2351,24 @@ export const Dashboard = ({ adminUser, onLogout }) => {
 
       {/* User Subscription Details Modal */}
       {subscriptionModal.open && (
-        <div className="modal-backdrop">
-          <div className="modal-content animate-scale-up" style={{ maxWidth: '560px', width: '95%' }}>
+        <div className="modal-backdrop" onClick={() => setSubscriptionModal({ open: false, user: null, loading: false, details: null })}>
+          <div className="modal-content subscription-details-modal animate-scale-up" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <div style={{ padding: '8px', borderRadius: '50%', backgroundColor: 'rgba(254, 60, 114, 0.15)', color: '#fe3c72' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flex: 1, minWidth: 0 }}>
+                <div style={{ padding: '8px', borderRadius: '50%', backgroundColor: 'rgba(254, 60, 114, 0.15)', color: '#fe3c72', flexShrink: 0 }}>
                   <Crown size={22} />
                 </div>
-                <div>
-                  <h3 className="modal-title" style={{ fontSize: '18px', fontWeight: '700', margin: 0 }}>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <h3 className="modal-title" style={{ fontSize: '18px', fontWeight: '700', margin: 0, wordBreak: 'break-word', lineHeight: '1.25' }}>
                     User Subscription Details
                   </h3>
-                  <div style={{ fontSize: '12px', color: '#64748b', marginTop: '2px' }}>
+                  <div style={{ fontSize: '12px', color: '#64748b', marginTop: '2px', wordBreak: 'break-all', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                     {subscriptionModal.user?.name || subscriptionModal.user?.firstName || 'User'} ({subscriptionModal.user?.email || 'No email'})
                   </div>
                 </div>
               </div>
               <button 
+                type="button"
                 className="close-btn" 
                 onClick={() => setSubscriptionModal({ open: false, user: null, loading: false, details: null })}
               >
@@ -2373,7 +2376,7 @@ export const Dashboard = ({ adminUser, onLogout }) => {
               </button>
             </div>
 
-            <div className="modal-body" style={{ padding: '16px 0', maxHeight: '70vh', overflowY: 'auto' }}>
+            <div className="modal-body subscription-modal-body">
               {subscriptionModal.loading ? (
                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '30px' }}>
                   <span className="spinner" style={{ borderColor: 'rgba(254,60,114,0.3)', borderTopColor: '#fe3c72', width: '32px', height: '32px' }}></span>
@@ -2399,14 +2402,14 @@ export const Dashboard = ({ adminUser, onLogout }) => {
                       padding: '16px',
                       marginBottom: '16px',
                     }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <div className="sub-banner-top-row" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
                         <div>
                           <div style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.5px', color: '#64748b', fontWeight: '700' }}>
                             Subscribed Package
                           </div>
-                          <div style={{ fontSize: '20px', fontWeight: '800', color: '#1e293b', marginTop: '2px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                            <Crown size={20} color="#f59e0b" />
-                            <span>{planName}</span>
+                          <div style={{ fontSize: '20px', fontWeight: '800', color: '#1e293b', marginTop: '2px', display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                            <Crown size={20} color="#f59e0b" style={{ flexShrink: 0 }} />
+                            <span style={{ wordBreak: 'break-word' }}>{planName}</span>
                           </div>
                         </div>
 
@@ -2421,16 +2424,17 @@ export const Dashboard = ({ adminUser, onLogout }) => {
                           display: 'inline-flex',
                           alignItems: 'center',
                           gap: '5px',
+                          flexShrink: 0,
                         }}>
                           {isActive ? <CheckCircle2 size={13} /> : <XCircle size={13} />}
                           <span>{isActive ? 'Active Subscription' : (status === 'canceled' ? 'Canceled' : 'Inactive')}</span>
                         </span>
                       </div>
 
-                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '12px', marginTop: '14px', paddingTop: '12px', borderTop: '1px solid rgba(226, 232, 240, 0.8)' }}>
+                      <div className="sub-meta-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '12px', marginTop: '14px', paddingTop: '12px', borderTop: '1px solid rgba(226, 232, 240, 0.8)' }}>
                         <div>
                           <span style={{ fontSize: '11px', color: '#64748b', display: 'block' }}>Pricing & Cycle</span>
-                          <span style={{ fontSize: '13px', fontWeight: '700', color: '#0f172a' }}>{price} / {cycle}</span>
+                          <span style={{ fontSize: '13px', fontWeight: '700', color: '#0f172a', wordBreak: 'break-word' }}>{price} / {cycle}</span>
                         </div>
                         <div>
                           <span style={{ fontSize: '11px', color: '#64748b', display: 'block' }}>Period Start</span>
@@ -2451,15 +2455,15 @@ export const Dashboard = ({ adminUser, onLogout }) => {
                     {(activeSub?.stripeCustomerId || activeSub?.stripeSubscriptionId || subscriptionModal.user?.stripeCustomerId) && (
                       <div style={{ background: '#f8fafc', borderRadius: '10px', padding: '12px 14px', marginBottom: '14px', border: '1px solid #e2e8f0', fontSize: '12px' }}>
                         <div style={{ fontWeight: '700', color: '#475569', marginBottom: '6px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                          <CreditCard size={14} color="#64748b" />
+                          <CreditCard size={14} color="#64748b" style={{ flexShrink: 0 }} />
                           <span>Payment Gateway Details (Stripe)</span>
                         </div>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', color: '#64748b' }}>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', color: '#64748b' }}>
                           {activeSub?.stripeCustomerId && (
-                            <div>Customer ID: <code style={{ backgroundColor: '#e2e8f0', padding: '2px 5px', borderRadius: '4px', color: '#1e293b' }}>{activeSub.stripeCustomerId}</code></div>
+                            <div style={{ wordBreak: 'break-all' }}>Customer ID: <code style={{ backgroundColor: '#e2e8f0', padding: '2px 5px', borderRadius: '4px', color: '#1e293b', wordBreak: 'break-all', display: 'inline-block' }}>{activeSub.stripeCustomerId}</code></div>
                           )}
                           {activeSub?.stripeSubscriptionId && (
-                            <div>Subscription ID: <code style={{ backgroundColor: '#e2e8f0', padding: '2px 5px', borderRadius: '4px', color: '#1e293b' }}>{activeSub.stripeSubscriptionId}</code></div>
+                            <div style={{ wordBreak: 'break-all' }}>Subscription ID: <code style={{ backgroundColor: '#e2e8f0', padding: '2px 5px', borderRadius: '4px', color: '#1e293b', wordBreak: 'break-all', display: 'inline-block' }}>{activeSub.stripeSubscriptionId}</code></div>
                           )}
                         </div>
                       </div>
@@ -2469,12 +2473,12 @@ export const Dashboard = ({ adminUser, onLogout }) => {
                     {planDetails?.features && planDetails.features.length > 0 && (
                       <div style={{ marginBottom: '14px' }}>
                         <div style={{ fontSize: '13px', fontWeight: '700', color: '#1e293b', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                          <Sparkles size={14} color="#f59e0b" />
+                          <Sparkles size={14} color="#f59e0b" style={{ flexShrink: 0 }} />
                           <span>Features Included in Plan</span>
                         </div>
                         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
                           {planDetails.features.map((f, i) => (
-                            <span key={i} style={{ fontSize: '11px', fontWeight: '600', padding: '4px 8px', borderRadius: '6px', backgroundColor: 'rgba(59, 130, 246, 0.1)', color: '#2563EB', border: '1px solid rgba(59, 130, 246, 0.2)' }}>
+                            <span key={i} style={{ fontSize: '11px', fontWeight: '600', padding: '4px 8px', borderRadius: '6px', backgroundColor: 'rgba(59, 130, 246, 0.1)', color: '#2563EB', border: '1px solid rgba(59, 130, 246, 0.2)', wordBreak: 'break-word' }}>
                               ✓ {f.featureKey || f.name || f}
                             </span>
                           ))}
@@ -2486,16 +2490,16 @@ export const Dashboard = ({ adminUser, onLogout }) => {
                     {subData?.subscriptionHistory && subData.subscriptionHistory.length > 0 && (
                       <div>
                         <div style={{ fontSize: '13px', fontWeight: '700', color: '#1e293b', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                          <Clock size={14} color="#64748b" />
+                          <Clock size={14} color="#64748b" style={{ flexShrink: 0 }} />
                           <span>Subscription History ({subData.subscriptionHistory.length})</span>
                         </div>
-                        <div style={{ border: '1px solid #e2e8f0', borderRadius: '8px', overflow: 'hidden' }}>
-                          <table style={{ width: '100%', fontSize: '12px', borderCollapse: 'collapse', textAlign: 'left' }}>
+                        <div style={{ border: '1px solid #e2e8f0', borderRadius: '8px', overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
+                          <table style={{ width: '100%', minWidth: '300px', fontSize: '12px', borderCollapse: 'collapse', textAlign: 'left' }}>
                             <thead style={{ backgroundColor: '#f1f5f9', color: '#475569' }}>
                               <tr>
-                                <th style={{ padding: '6px 10px' }}>Plan</th>
-                                <th style={{ padding: '6px 10px' }}>Status</th>
-                                <th style={{ padding: '6px 10px' }}>Date</th>
+                                <th style={{ padding: '6px 10px', whiteSpace: 'nowrap' }}>Plan</th>
+                                <th style={{ padding: '6px 10px', whiteSpace: 'nowrap' }}>Status</th>
+                                <th style={{ padding: '6px 10px', whiteSpace: 'nowrap' }}>Date</th>
                               </tr>
                             </thead>
                             <tbody>
@@ -2507,7 +2511,7 @@ export const Dashboard = ({ adminUser, onLogout }) => {
                                       {hist.status}
                                     </span>
                                   </td>
-                                  <td style={{ padding: '6px 10px', color: '#64748b' }}>
+                                  <td style={{ padding: '6px 10px', color: '#64748b', whiteSpace: 'nowrap' }}>
                                     {hist.createdAt ? new Date(hist.createdAt).toLocaleDateString() : 'N/A'}
                                   </td>
                                 </tr>
@@ -2522,7 +2526,7 @@ export const Dashboard = ({ adminUser, onLogout }) => {
               })()}
             </div>
 
-            <div className="modal-footer" style={{ display: 'flex', justifyContent: 'flex-end', paddingTop: '12px', borderTop: '1px solid #f1f5f9' }}>
+            <div className="modal-footer subscription-modal-footer">
               <button
                 type="button"
                 className="btn-primary-submit"
@@ -2544,16 +2548,14 @@ export const Dashboard = ({ adminUser, onLogout }) => {
           <div className="modal-container contact-details-modal animate-slide-up" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '680px', width: '92%' }}>
             
             {/* Modal Header */}
-            <div className="modal-header" style={{ borderBottom: '1.5px solid #f1f5f9', paddingBottom: '16px' }}>
+            <div className="modal-header">
               <div className="modal-title-box">
                 <div className="modal-icon-badge" style={{ backgroundColor: '#fff0f5', color: '#FE3C72' }}>
                   <MessageSquare size={22} />
                 </div>
                 <div className="modal-title-text">
-                  <h3 style={{ fontSize: '18px', fontWeight: '800', color: '#0f172a', margin: 0 }}>
-                    User Support Report Details
-                  </h3>
-                  <p style={{ fontSize: '12.5px', color: '#64748b', margin: '2px 0 0 0' }}>
+                  <h3>User Support Report Details</h3>
+                  <p>
                     Full submission info for ticket #{viewContactModal.report._id?.substring(viewContactModal.report._id.length - 8) || viewContactModal.report._id}
                   </p>
                 </div>
@@ -2568,7 +2570,7 @@ export const Dashboard = ({ adminUser, onLogout }) => {
             </div>
 
             {/* Modal Content Body */}
-            <div className="modal-body contact-modal-body" style={{ padding: '20px 0', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+            <div className="modal-body contact-modal-body">
               
               {/* Row 1: Sender Profile & Status Bar */}
               <div className="contact-modal-info-grid" style={{ backgroundColor: '#f8fafc', padding: '16px', borderRadius: '14px', border: '1px solid #e2e8f0' }}>
@@ -2592,12 +2594,12 @@ export const Dashboard = ({ adminUser, onLogout }) => {
                     }}>
                       {(viewContactModal.report.name || 'G')[0].toUpperCase()}
                     </div>
-                    <div>
-                      <div style={{ fontSize: '15px', fontWeight: '800', color: '#0f172a' }}>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: '15px', fontWeight: '800', color: '#0f172a', wordBreak: 'break-word' }}>
                         {viewContactModal.report.name || 'Guest User'}
                       </div>
-                      <div style={{ fontSize: '11.5px', color: '#64748b', marginTop: '2px', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                        <Calendar size={12} color="#FE3C72" />
+                      <div style={{ fontSize: '11.5px', color: '#64748b', marginTop: '2px', display: 'flex', alignItems: 'center', gap: '4px', flexWrap: 'wrap' }}>
+                        <Calendar size={12} color="#FE3C72" style={{ flexShrink: 0 }} />
                         <span>Submitted: <strong>{formatDateTime(viewContactModal.report.createdAt)}</strong></span>
                       </div>
                     </div>
@@ -2618,7 +2620,7 @@ export const Dashboard = ({ adminUser, onLogout }) => {
                         ]}
                         value={viewContactModal.report.status || 'pending'}
                         onChange={(val) => handleModalStatusChange(val)}
-                        style={{ flex: 1, minWidth: '140px' }}
+                        style={{ flex: 1, minWidth: '130px' }}
                       />
                       {viewContactModal.report.status === 'resolved' ? (
                         <span className="status-pill pill-resolved">Resolved</span>
@@ -2637,9 +2639,9 @@ export const Dashboard = ({ adminUser, onLogout }) => {
                 
                 {/* Email Info Card */}
                 <div style={{ padding: '14px', backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '12px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', flexWrap: 'wrap' }}>
                     <span style={{ fontSize: '11.5px', fontWeight: '700', color: '#64748b', display: 'flex', alignItems: 'center', gap: '5px' }}>
-                      <Mail size={14} color="#3b82f6" /> Email Address
+                      <Mail size={14} color="#3b82f6" style={{ flexShrink: 0 }} /> Email Address
                     </span>
                     {viewContactModal.report.email && (
                       <button
@@ -2666,9 +2668,9 @@ export const Dashboard = ({ adminUser, onLogout }) => {
 
                 {/* Phone Info Card */}
                 <div style={{ padding: '14px', backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '12px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', flexWrap: 'wrap' }}>
                     <span style={{ fontSize: '11.5px', fontWeight: '700', color: '#64748b', display: 'flex', alignItems: 'center', gap: '5px' }}>
-                      <Phone size={14} color="#10b981" /> Phone Number
+                      <Phone size={14} color="#10b981" style={{ flexShrink: 0 }} /> Phone Number
                     </span>
                     {viewContactModal.report.phone && (
                       <button
@@ -2684,7 +2686,7 @@ export const Dashboard = ({ adminUser, onLogout }) => {
                   {viewContactModal.report.phone ? (
                     <a
                       href={`tel:${viewContactModal.report.phone}`}
-                      style={{ fontSize: '13.5px', fontWeight: '700', color: '#0f172a', textDecoration: 'none' }}
+                      style={{ fontSize: '13.5px', fontWeight: '700', color: '#0f172a', textDecoration: 'none', wordBreak: 'break-all' }}
                     >
                       {viewContactModal.report.phone}
                     </a>
@@ -2711,17 +2713,19 @@ export const Dashboard = ({ adminUser, onLogout }) => {
                   display: 'flex',
                   alignItems: 'center',
                   gap: '8px',
+                  wordBreak: 'break-word',
                 }}>
-                  <HelpCircle size={16} color="#FE3C72" />
+                  <HelpCircle size={16} color="#FE3C72" style={{ flexShrink: 0 }} />
                   <span>{viewContactModal.report.subject || 'General Inquiry / App Problem'}</span>
                 </div>
               </div>
 
               {/* Row 4: Submitted Issue Description (Full Message) */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px' }}>
                   <span style={{ fontSize: '12.5px', fontWeight: '800', color: '#0f172a', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <FileText size={15} color="#FE3C72" /> Complete User Submitted Issue Description
+                    <FileText size={15} color="#FE3C72" style={{ flexShrink: 0 }} />
+                    <span>User Submitted Issue Description</span>
                   </span>
                   <button
                     type="button"
@@ -2738,11 +2742,11 @@ export const Dashboard = ({ adminUser, onLogout }) => {
                     backgroundColor: '#ffffff',
                     border: '1.5px solid #e2e8f0',
                     borderRadius: '12px',
-                    padding: '16px',
-                    fontSize: '14px',
+                    padding: '14px',
+                    fontSize: '13.5px',
                     color: '#1e293b',
                     lineHeight: '1.6',
-                    maxHeight: '220px',
+                    maxHeight: '200px',
                     overflowY: 'auto',
                     whiteSpace: 'pre-wrap',
                     wordBreak: 'break-word',
@@ -2765,7 +2769,7 @@ export const Dashboard = ({ adminUser, onLogout }) => {
                   onChange={(e) => setViewContactModal((prev) => ({ ...prev, adminNotes: e.target.value }))}
                   style={{
                     width: '100%',
-                    padding: '12px',
+                    padding: '10px 12px',
                     borderRadius: '10px',
                     border: '1.5px solid #cbd5e1',
                     fontSize: '13px',
@@ -2773,6 +2777,7 @@ export const Dashboard = ({ adminUser, onLogout }) => {
                     color: '#0f172a',
                     outline: 'none',
                     resize: 'vertical',
+                    boxSizing: 'border-box',
                   }}
                 />
                 <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
@@ -2781,7 +2786,7 @@ export const Dashboard = ({ adminUser, onLogout }) => {
                     className="btn-create-report"
                     disabled={viewContactModal.savingNotes}
                     onClick={handleSaveContactNotes}
-                    style={{ padding: '6px 14px', fontSize: '12.5px' }}
+                    style={{ padding: '7px 14px', fontSize: '12.5px' }}
                   >
                     {viewContactModal.savingNotes ? (
                       <span>Saving Notes...</span>
@@ -2798,7 +2803,7 @@ export const Dashboard = ({ adminUser, onLogout }) => {
             </div>
 
             {/* Modal Footer */}
-            <div className="modal-footer" style={{ borderTop: '1.5px solid #f1f5f9', paddingTop: '14px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <div className="modal-footer contact-modal-footer">
               <button
                 type="button"
                 onClick={() => {

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import ResponsiveSelect from './ResponsiveSelect';
 import {
   CreditCard,
@@ -69,6 +70,25 @@ export const SubscriptionManager = () => {
   useEffect(() => {
     loadData();
   }, []);
+
+  // Lock body scroll and close on ESC key when modal is open
+  useEffect(() => {
+    if (showPlanModal) {
+      document.body.style.overflow = 'hidden';
+      const handleKeyDown = (e) => {
+        if (e.key === 'Escape') {
+          setShowPlanModal(false);
+        }
+      };
+      window.addEventListener('keydown', handleKeyDown);
+      return () => {
+        document.body.style.overflow = 'unset';
+        window.removeEventListener('keydown', handleKeyDown);
+      };
+    } else {
+      document.body.style.overflow = 'unset';
+    }
+  }, [showPlanModal]);
 
   const loadData = async () => {
     setLoading(true);
@@ -533,50 +553,33 @@ export const SubscriptionManager = () => {
         )}
       </div>
 
-      {/* MODAL 1: CREATE / EDIT PLAN FORM */}
-      {showPlanModal && (
-        <div
-          className="sub-modal-overlay"
-          style={{
-            position: 'fixed',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            backgroundColor: 'rgba(15, 23, 42, 0.65)',
-            backdropFilter: 'blur(4px)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            zIndex: 9999,
-          }}
-        >
+      {/* MODAL 1: CREATE / EDIT PLAN FORM (PORTALED ABOVE SCREEN) */}
+      {showPlanModal &&
+        typeof document !== 'undefined' &&
+        createPortal(
           <div
-            className="modal-container sub-modal-container"
-            style={{
-              backgroundColor: '#ffffff',
-              borderRadius: '20px',
-              width: '100%',
-              maxWidth: '650px',
-              maxHeight: '90vh',
-              overflowY: 'auto',
-              boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
-              position: 'relative',
-            }}
+            className="modal-backdrop sub-modal-overlay animate-fade-in"
+            onClick={() => setShowPlanModal(false)}
           >
+            <div
+              className="modal-container sub-modal-container animate-slide-up"
+              onClick={(e) => e.stopPropagation()}
+            >
             {/* Modal Header */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', borderBottom: '1px solid #f1f5f9', paddingBottom: '14px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <CreditCard size={24} color="#ff4d6d" />
-                <h3 style={{ fontSize: '20px', fontWeight: 800, color: '#0f172a' }}>
+            <div className="sub-modal-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', borderBottom: '1px solid #f1f5f9', paddingBottom: '14px', gap: '10px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flex: 1, minWidth: 0 }}>
+                <CreditCard size={24} color="#ff4d6d" style={{ flexShrink: 0 }} />
+                <h3 style={{ fontSize: '19px', fontWeight: 800, color: '#0f172a', margin: 0, wordBreak: 'break-word', lineHeight: '1.25' }}>
                   {isEditing ? `Edit Plan: ${formData.name}` : 'Create New Subscription Plan'}
                 </h3>
               </div>
               <button
+                type="button"
+                className="modal-close-btn"
                 onClick={() => setShowPlanModal(false)}
-                style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#64748b' }}
+                style={{ flexShrink: 0 }}
               >
-                <X size={20} />
+                <X size={18} />
               </button>
             </div>
 
@@ -855,16 +858,8 @@ export const SubscriptionManager = () => {
               <div className="sub-modal-footer">
                 <button
                   type="button"
+                  className="btn-secondary-cancel"
                   onClick={() => setShowPlanModal(false)}
-                  style={{
-                    padding: '10px 18px',
-                    borderRadius: '8px',
-                    border: '1px solid #cbd5e1',
-                    backgroundColor: '#fff',
-                    color: '#475569',
-                    fontWeight: 600,
-                    cursor: 'pointer',
-                  }}
                 >
                   Cancel
                 </button>
@@ -872,24 +867,15 @@ export const SubscriptionManager = () => {
                 <button
                   type="submit"
                   disabled={isSubmitting}
-                  style={{
-                    padding: '10px 24px',
-                    borderRadius: '8px',
-                    border: 'none',
-                    background: 'linear-gradient(135deg, #ff4d6d 0%, #e02850 100%)',
-                    color: '#fff',
-                    fontWeight: 700,
-                    cursor: 'pointer',
-                    boxShadow: '0 4px 14px rgba(255, 77, 109, 0.35)',
-                    opacity: isSubmitting ? 0.7 : 1,
-                  }}
+                  className="btn-primary-submit"
                 >
                   {isSubmitting ? 'Saving to Database & Stripe...' : isEditing ? 'Save Changes' : 'Create & Sync Plan'}
                 </button>
               </div>
             </form>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
     </div>
