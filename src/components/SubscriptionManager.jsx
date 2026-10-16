@@ -482,17 +482,7 @@ export const SubscriptionManager = () => {
                         )}
                     </div>
 
-                    {/* Stripe Sync Status */}
-                    {plan.stripePriceId ? (
-                      <div style={{ fontSize: '11px', color: '#059669', backgroundColor: '#ecfdf5', padding: '6px 10px', borderRadius: '6px', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                        <CheckCircle2 size={13} />
-                        <span>Synced with Stripe ({plan.stripePriceId})</span>
-                      </div>
-                    ) : (
-                      <div style={{ fontSize: '11px', color: '#6b7280', backgroundColor: '#f3f4f6', padding: '6px 10px', borderRadius: '6px', marginBottom: '16px' }}>
-                        {plan.price === 0 ? 'Free Plan (No Stripe needed)' : 'Custom / Offline Pricing'}
-                      </div>
-                    )}
+
                   </div>
 
                   {/* Card Action Controls */}
