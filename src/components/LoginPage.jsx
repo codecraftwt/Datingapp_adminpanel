@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Mail, Lock, Eye, EyeOff, AlertCircle, ArrowRight, ShieldCheck, CheckCircle2 } from 'lucide-react';
+import { Mail, Lock, Eye, EyeOff, AlertCircle, ArrowRight, CheckCircle2 } from 'lucide-react';
 import { TwoStringsLogo } from './TwoStringsLogo';
 import { CoupleBanner } from './CoupleBanner';
 import { loginAdmin } from '../services/api';
@@ -51,13 +51,6 @@ export const LoginPage = ({ onLoginSuccess }) => {
     }
   };
 
-  // Quick helper to populate demo/superadmin credentials easily
-  const handleQuickFill = () => {
-    setEmail('admin@datingapp.com');
-    setPassword('admin123');
-    setErrorMessage('');
-  };
-
   return (
     <div className="login-wrapper">
       <div className="login-card-container">
@@ -105,9 +98,9 @@ export const LoginPage = ({ onLoginSuccess }) => {
                 <div className="input-field-wrapper">
                   <Mail className="field-icon" size={18} />
                   <input
-                    type="email"
+                    type="text"
                     className="form-input"
-                    placeholder="Email Address"
+                    placeholder="Username or Email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     required
@@ -155,33 +148,6 @@ export const LoginPage = ({ onLoginSuccess }) => {
                 )}
               </button>
             </form>
-
-            {/* Quick Demo Fill Shortcut */}
-            <div className="quick-fill-container" style={{ marginTop: '14px', textCenter: 'center' }}>
-              <button
-                type="button"
-                className="quick-fill-btn"
-                onClick={handleQuickFill}
-                style={{
-                  width: '100%',
-                  padding: '8px 12px',
-                  borderRadius: '8px',
-                  border: '1px dashed #cbd5e1',
-                  backgroundColor: '#f8fafc',
-                  color: '#475569',
-                  fontSize: '12.5px',
-                  fontWeight: '600',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: '6px',
-                }}
-              >
-                <ShieldCheck size={14} color="#ff4d6d" />
-                <span>Auto-fill Default Admin Credentials</span>
-              </button>
-            </div>
 
             {/* Footer security note */}
             <div className="login-footer-text">

@@ -82,6 +82,7 @@ export const Dashboard = ({ adminUser, onLogout }) => {
   const [accountStatusFilter, setAccountStatusFilter] = useState('all');
   const [subscriptionFilter, setSubscriptionFilter] = useState('all');
   const [reportStatusFilter, setReportStatusFilter] = useState('all');
+  const [reportSearch, setReportSearch] = useState('');
   const [contactSearch, setContactSearch] = useState('');
   const [contactStatusFilter, setContactStatusFilter] = useState('all');
   const [actionMessage, setActionMessage] = useState('');
@@ -140,11 +141,38 @@ export const Dashboard = ({ adminUser, onLogout }) => {
 
   useEffect(() => {
     setReportsPage(1);
-  }, [reportStatusFilter]);
+  }, [reportStatusFilter, reportSearch]);
 
   useEffect(() => {
     setContactReportsPage(1);
   }, [contactSearch, contactStatusFilter]);
+
+  // Reported User Complaint View Details Modal State
+  const [viewReportModal, setViewReportModal] = useState({
+    open: false,
+    report: null,
+  });
+
+  const handleOpenReportModal = (report) => {
+    setViewReportModal({
+      open: true,
+      report,
+    });
+  };
+
+  const handleModalReportStatusChange = async (newStatus) => {
+    if (!viewReportModal.report) return;
+    try {
+      const reportId = viewReportModal.report._id;
+      await handleUpdateStatus(reportId, newStatus);
+      setViewReportModal((prev) => ({
+        ...prev,
+        report: { ...prev.report, status: newStatus },
+      }));
+    } catch (err) {
+      console.error('Failed to update report status in modal:', err);
+    }
+  };
 
   // Contact Us Report View Details Modal State
   const [viewContactModal, setViewContactModal] = useState({
@@ -542,8 +570,42 @@ export const Dashboard = ({ adminUser, onLogout }) => {
   });
 
   const filteredReports = reports.filter((r) => {
-    if (reportStatusFilter === 'all') return true;
-    return (r.status || 'pending').toLowerCase() === reportStatusFilter.toLowerCase();
+    const reported = r.reportedId || {};
+    const reporter = r.reporterId || {};
+    const reportedName = (reported.name || reported.firstName || '').toLowerCase();
+    const reportedEmail = (reported.email || '').toLowerCase();
+    const reportedMobile = (reported.mobile || '').toLowerCase();
+    const reporterName = (reporter.name || reporter.firstName || '').toLowerCase();
+    const reporterEmail = (reporter.email || '').toLowerCase();
+    const reporterMobile = (reporter.mobile || '').toLowerCase();
+    const reason = (r.reason || '').toLowerCase();
+    const details = (r.details || '').toLowerCase();
+    const category = (r.category || '').toLowerCase();
+
+    const q = reportSearch.toLowerCase().trim();
+    const matchesSearch =
+      !q ||
+      reportedName.includes(q) ||
+      reportedEmail.includes(q) ||
+      reportedMobile.includes(q) ||
+      reporterName.includes(q) ||
+      reporterEmail.includes(q) ||
+      reporterMobile.includes(q) ||
+      reason.includes(q) ||
+      details.includes(q) ||
+      category.includes(q);
+
+    let matchesStatus = true;
+    const st = (r.status || 'pending').toLowerCase();
+    if (reportStatusFilter === 'all') {
+      matchesStatus = true;
+    } else if (reportStatusFilter === 'reviewed') {
+      matchesStatus = ['reviewed', 'working', 'under_review'].includes(st);
+    } else {
+      matchesStatus = st === reportStatusFilter.toLowerCase();
+    }
+
+    return matchesSearch && matchesStatus;
   });
 
   // Paginated Users Slicing (10 records per page)
@@ -1253,32 +1315,163 @@ export const Dashboard = ({ adminUser, onLogout }) => {
         {/* TAB 2: ALL REPORTED USERS & REPORTERS */}
         {activeTab === 'reports' && (
           <div className="tab-panel animate-fade-in">
-            {/* Filter Toolbar */}
-            <div className="toolbar" style={{ justifyContent: 'space-between' }}>
-              <div className="filter-box">
-                <Filter size={16} className="filter-icon" />
-                <ResponsiveSelect
-                  hasLeftIcon={true}
-                  options={[
-                    { value: 'all', label: 'All Report Statuses' },
-                    { value: 'pending', label: 'Pending' },
-                    { value: 'reviewed', label: 'Reviewed' },
-                    { value: 'resolved', label: 'Resolved' },
-                    { value: 'dismissed', label: 'Dismissed' },
-                  ]}
-                  value={reportStatusFilter}
-                  onChange={(val) => setReportStatusFilter(val)}
-                  style={{ minWidth: '180px' }}
+            {/* Top Metric Summary Cards */}
+            {(() => {
+              const totalCount = reports.length;
+              const pendingCount = reports.filter((r) => (r.status || 'pending').toLowerCase() === 'pending').length;
+              const reviewedCount = reports.filter((r) => ['reviewed', 'working', 'under_review'].includes((r.status || '').toLowerCase())).length;
+              const resolvedCount = reports.filter((r) => ['resolved', 'dismissed'].includes((r.status || '').toLowerCase())).length;
+
+              return (
+                <div className="stats-grid contact-reports-stats-grid" style={{ marginBottom: '20px' }}>
+                  <div
+                    className={`stat-card stat-users ${reportStatusFilter === 'all' ? 'selected-card' : ''}`}
+                    onClick={() => setReportStatusFilter('all')}
+                    style={{ cursor: 'pointer' }}
+                  >
+                    <div className="stat-icon-wrapper" style={{ backgroundColor: '#fff0f5', color: '#FE3C72' }}>
+                      <ShieldAlert size={24} />
+                    </div>
+                    <div className="stat-content">
+                      <span className="stat-value">{totalCount}</span>
+                      <span className="stat-label">Total User Reports</span>
+                      <span className="stat-subtext">Community complaints & flags</span>
+                    </div>
+                  </div>
+
+                  <div
+                    className={`stat-card ${reportStatusFilter === 'pending' ? 'selected-card' : ''}`}
+                    onClick={() => setReportStatusFilter('pending')}
+                    style={{ cursor: 'pointer', borderLeft: '4px solid #f59e0b' }}
+                  >
+                    <div className="stat-icon-wrapper" style={{ backgroundColor: '#fef3c7', color: '#d97706' }}>
+                      <Clock size={24} />
+                    </div>
+                    <div className="stat-content">
+                      <span className="stat-value" style={{ color: '#d97706' }}>{pendingCount}</span>
+                      <span className="stat-label">Pending Action</span>
+                      <span className="stat-subtext">Awaiting admin review</span>
+                    </div>
+                  </div>
+
+                  <div
+                    className={`stat-card ${reportStatusFilter === 'reviewed' ? 'selected-card' : ''}`}
+                    onClick={() => setReportStatusFilter('reviewed')}
+                    style={{ cursor: 'pointer', borderLeft: '4px solid #3b82f6' }}
+                  >
+                    <div className="stat-icon-wrapper" style={{ backgroundColor: '#dbeafe', color: '#2563eb' }}>
+                      <RefreshCw size={24} />
+                    </div>
+                    <div className="stat-content">
+                      <span className="stat-value" style={{ color: '#2563eb' }}>{reviewedCount}</span>
+                      <span className="stat-label">Under Review</span>
+                      <span className="stat-subtext">Currently investigating</span>
+                    </div>
+                  </div>
+
+                  <div
+                    className={`stat-card ${reportStatusFilter === 'resolved' ? 'selected-card' : ''}`}
+                    onClick={() => setReportStatusFilter('resolved')}
+                    style={{ cursor: 'pointer', borderLeft: '4px solid #10b981' }}
+                  >
+                    <div className="stat-icon-wrapper" style={{ backgroundColor: '#d1fae5', color: '#059669' }}>
+                      <CheckCircle2 size={24} />
+                    </div>
+                    <div className="stat-content">
+                      <span className="stat-value" style={{ color: '#059669' }}>{resolvedCount}</span>
+                      <span className="stat-label">Resolved / Dismissed</span>
+                      <span className="stat-subtext">Action taken or closed</span>
+                    </div>
+                  </div>
+                </div>
+              );
+            })()}
+
+            {/* Filter and Search Bar */}
+            <div className="table-filter-bar contact-filter-bar">
+              <div className="search-input-wrapper">
+                <Search size={18} className="search-icon" />
+                <input
+                  type="text"
+                  className="table-search-input"
+                  placeholder="Search by reported user, reporter, email, mobile, reason..."
+                  value={reportSearch}
+                  onChange={(e) => setReportSearch(e.target.value)}
                 />
+                {reportSearch && (
+                  <button className="clear-search-btn" onClick={() => setReportSearch('')}>
+                    <X size={14} />
+                  </button>
+                )}
               </div>
 
-              <button 
-                className="btn-create-report" 
-                onClick={() => setShowReportModal(true)}
-              >
-                <PlusCircle size={16} />
-                <span>Submit Reported User Form</span>
-              </button>
+              <div className="filter-controls-group">
+                {/* Quick Status Pills */}
+                <div className="contact-quick-status-pills">
+                  <button
+                    type="button"
+                    className={`status-pill-btn ${reportStatusFilter === 'all' ? 'active' : ''}`}
+                    onClick={() => setReportStatusFilter('all')}
+                  >
+                    All ({reports.length})
+                  </button>
+                  <button
+                    type="button"
+                    className={`status-pill-btn pending ${reportStatusFilter === 'pending' ? 'active' : ''}`}
+                    onClick={() => setReportStatusFilter('pending')}
+                  >
+                    Pending ({reports.filter((r) => (r.status || 'pending').toLowerCase() === 'pending').length})
+                  </button>
+                  <button
+                    type="button"
+                    className={`status-pill-btn reviewed ${reportStatusFilter === 'reviewed' ? 'active' : ''}`}
+                    onClick={() => setReportStatusFilter('reviewed')}
+                  >
+                    Under Review ({reports.filter((r) => ['reviewed', 'working', 'under_review'].includes((r.status || '').toLowerCase())).length})
+                  </button>
+                  <button
+                    type="button"
+                    className={`status-pill-btn resolved ${reportStatusFilter === 'resolved' ? 'active' : ''}`}
+                    onClick={() => setReportStatusFilter('resolved')}
+                  >
+                    Resolved ({reports.filter((r) => (r.status || '').toLowerCase() === 'resolved').length})
+                  </button>
+                  <button
+                    type="button"
+                    className={`status-pill-btn dismissed ${reportStatusFilter === 'dismissed' ? 'active' : ''}`}
+                    onClick={() => setReportStatusFilter('dismissed')}
+                  >
+                    Dismissed ({reports.filter((r) => (r.status || '').toLowerCase() === 'dismissed').length})
+                  </button>
+                </div>
+
+                <div className="filter-select-wrapper">
+                  <Filter size={16} className="filter-icon" />
+                  <ResponsiveSelect
+                    hasLeftIcon={true}
+                    options={[
+                      { value: 'all', label: 'All Statuses' },
+                      { value: 'pending', label: 'Pending' },
+                      { value: 'reviewed', label: 'Under Review' },
+                      { value: 'resolved', label: 'Resolved' },
+                      { value: 'dismissed', label: 'Dismissed' },
+                    ]}
+                    value={reportStatusFilter}
+                    onChange={(val) => setReportStatusFilter(val)}
+                    style={{ minWidth: '160px' }}
+                  />
+                </div>
+
+                <button
+                  type="button"
+                  className="btn-create-report"
+                  onClick={() => setShowReportModal(true)}
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+                >
+                  <PlusCircle size={16} />
+                  <span>Submit Reported User Form</span>
+                </button>
+              </div>
             </div>
 
             {loading ? (
@@ -1287,169 +1480,379 @@ export const Dashboard = ({ adminUser, onLogout }) => {
                 <span>Loading report queue...</span>
               </div>
             ) : filteredReports.length === 0 ? (
-              <div className="empty-state">
-                <CheckCircle2 size={40} className="empty-icon success-color" />
-                <p>No reported users found for the selected status.</p>
+              <div
+                style={{
+                  textAlign: 'center',
+                  padding: '50px 20px',
+                  backgroundColor: '#ffffff',
+                  borderRadius: '16px',
+                  border: '1px solid #e2e8f0',
+                  marginTop: '16px',
+                  color: '#64748b',
+                }}
+              >
+                <ShieldCheck size={44} style={{ marginBottom: '12px', opacity: 0.4, color: '#FE3C72' }} />
+                <h4 style={{ margin: '0 0 6px 0', color: '#0f172a', fontWeight: '700' }}>No reported users found</h4>
+                <p style={{ margin: 0, fontSize: '13px' }}>
+                  {reportSearch || reportStatusFilter !== 'all'
+                    ? 'Try adjusting your search query or status filter.'
+                    : 'No reported users in the system yet.'}
+                </p>
               </div>
             ) : (
-              <div className="reports-cards-grid">
-                {paginatedReports.map((report) => {
-                  const reporter = report.reporterId || {};
-                  const reported = report.reportedId || {};
+              <>
+                {/* Desktop & Tablet Data Table */}
+                <div className="table-responsive-wrapper contact-desktop-table-wrapper">
+                  <table className="pink-data-table contact-reports-table">
+                    <thead>
+                      <tr>
+                        <th style={{ width: '50px', textAlign: 'center' }}>#</th>
+                        <th style={{ width: '130px' }}>Date & Time</th>
+                        <th style={{ width: '190px' }}>Reported User</th>
+                        <th style={{ width: '170px' }}>Reporter</th>
+                        <th style={{ width: '160px' }}>Category / Reason</th>
+                        <th style={{ minWidth: '200px' }}>Complaint Details</th>
+                        <th style={{ width: '110px' }}>Status</th>
+                        <th style={{ width: '210px', textAlign: 'center' }}>Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {paginatedReports.map((report, idx) => {
+                        const globalIndex = reportsStartIndex + idx + 1;
+                        const reporter = report.reporterId || {};
+                        const reported = report.reportedId || {};
 
-                  const reportedName = reported.name || reported.firstName || 'Reported User';
-                  const reporterName = reporter.name || reporter.firstName || 'Reporter';
+                        const reportedName = reported.name || reported.firstName || 'Reported User';
+                        const reporterName = reporter.name || reporter.firstName || 'Reporter';
 
-                  const reportedInitial = reportedName[0].toUpperCase();
-                  const reporterInitial = reporterName[0].toUpperCase();
+                        const reportedInitial = (reportedName || 'R')[0].toUpperCase();
+                        const reporterInitial = (reporterName || 'U')[0].toUpperCase();
 
-                  return (
-                    <div 
-                      key={report._id} 
-                      className={`report-card status-${report.status || 'pending'}`}
-                      style={{ backgroundColor: '#ffe4ec', border: '1.5px solid #fbcfe8' }}
-                    >
-                      {/* Report Header */}
-                      <div className="report-card-header">
-                        <span className={`status-pill pill-${report.status || 'pending'}`}>
-                          {(report.status || 'pending').toUpperCase()}
-                        </span>
-                        <div className="report-date-badge" style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: '#475569', backgroundColor: '#ffffff', padding: '4px 10px', borderRadius: '6px', border: '1px solid #fbcfe8', fontWeight: '500' }}>
-                          <Calendar size={13} style={{ color: '#ff4d6d' }} />
-                          <span>Reported on: <strong style={{ color: '#0f172a' }}>{formatDateTime(report.createdAt)}</strong></span>
-                        </div>
-                      </div>
+                        const warnList = reported.warnings || [];
+                        const ackWarn = warnList.find((w) => w.isAcknowledged === true);
+                        const pendingWarn = warnList.find((w) => w.isAcknowledged === false);
+                        const isAck = report.isAcknowledged === true || report.details === 'Report Viewed & Acknowledged' || !!ackWarn;
 
-                      {/* Reported User & Reporter Text Box */}
-                      <div className="report-parties-wrapper">
-                        
-                        {/* REPORTED USER */}
-                        <div className="party-box reported-party">
-                          <span className="party-label text-danger">
-                            <AlertTriangle size={14} /> REPORTED USER
-                          </span>
-                          <div className="party-profile">
-                            <div className="party-avatar danger-border">
-                              {reportedInitial}
-                            </div>
-                            <div className="party-details">
-                              <strong>{reportedName}</strong>
-                              <span>{reported.email || reported.mobile || 'No contact'}</span>
-                              <div style={{ marginTop: '4px', fontSize: '11px', color: '#e11d48', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                                <Clock size={12} />
-                                <span>Report Date: {formatDateTime(report.createdAt)}</span>
+                        const reasonSnippet = report.reason && report.reason.length > 65
+                          ? report.reason.substring(0, 65) + '...'
+                          : (report.reason || 'No description provided');
+
+                        const categoryText = report.category || (report.reason && report.reason.startsWith('[') ? report.reason.split(']')[0].replace('[', '') : 'Community Flag');
+
+                        return (
+                          <tr key={report._id}>
+                            <td style={{ textAlign: 'center', fontWeight: '700', color: '#94a3b8', fontSize: '12px' }}>
+                              {globalIndex}
+                            </td>
+                            <td>
+                              <div style={{ fontSize: '12px', fontWeight: '700', color: '#0f172a' }}>
+                                {new Date(report.createdAt).toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' })}
                               </div>
-                              {(() => {
-                                const warnList = reported.warnings || [];
-                                const ackWarn = warnList.find((w) => w.isAcknowledged === true);
-                                const pendingWarn = warnList.find((w) => w.isAcknowledged === false);
-                                if (ackWarn) {
-                                  return (
-                                    <div style={{ marginTop: '4px', fontSize: '11px', color: '#10B981', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '3px' }}>
-                                      <ShieldCheck size={13} />
-                                      <span>User Acknowledged Warning ({new Date(ackWarn.acknowledgedAt || ackWarn.issuedAt).toLocaleDateString()})</span>
+                              <div style={{ fontSize: '11px', color: '#64748b', marginTop: '2px', display: 'flex', alignItems: 'center', gap: '3px' }}>
+                                <Clock size={11} color="#94a3b8" />
+                                <span>{new Date(report.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                              </div>
+                            </td>
+                            <td>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '9px' }}>
+                                <div
+                                  style={{
+                                    width: '32px',
+                                    height: '32px',
+                                    borderRadius: '50%',
+                                    backgroundColor: getAvatarColor(reportedName),
+                                    color: '#ffffff',
+                                    fontWeight: '800',
+                                    fontSize: '12px',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    flexShrink: 0,
+                                  }}
+                                >
+                                  {reportedInitial}
+                                </div>
+                                <div style={{ minWidth: 0 }}>
+                                  <div style={{ fontWeight: '700', color: '#0f172a', fontSize: '13px' }}>
+                                    {reportedName}
+                                  </div>
+                                  <div style={{ fontSize: '11.5px', color: '#64748b', display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                                    {reported.email && <span>{reported.email}</span>}
+                                    {reported.mobile && <span>{reported.mobile}</span>}
+                                    {!reported.email && !reported.mobile && <span style={{ fontStyle: 'italic', color: '#94a3b8' }}>No contact</span>}
+                                  </div>
+                                  {ackWarn && (
+                                    <div style={{ marginTop: '3px', fontSize: '10.5px', color: '#10b981', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '3px' }}>
+                                      <ShieldCheck size={12} />
+                                      <span>Acknowledged Warning</span>
                                     </div>
-                                  );
-                                }
-                                if (pendingWarn) {
-                                  return (
-                                    <div style={{ marginTop: '4px', fontSize: '11px', color: '#F59E0B', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '3px' }}>
-                                      <AlertTriangle size={13} />
-                                      <span>Warning Issued (Pending User Acknowledgement)</span>
+                                  )}
+                                  {pendingWarn && !ackWarn && (
+                                    <div style={{ marginTop: '3px', fontSize: '10.5px', color: '#f59e0b', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '3px' }}>
+                                      <AlertTriangle size={12} />
+                                      <span>Warning Pending</span>
                                     </div>
-                                  );
-                                }
-                                return null;
-                              })()}
-                            </div>
-                          </div>
-                        </div>
-
-                        <div className="vs-divider">VS</div>
-
-                        {/* REPORTER USER */}
-                        <div className="party-box reporter-party">
-                          <span className="party-label text-info">
-                            <User size={14} /> REPORTER
-                          </span>
-                          <div className="party-profile">
-                            <div className="party-avatar info-border">
-                              {reporterInitial}
-                            </div>
-                            <div className="party-details">
-                              <strong>{reporterName}</strong>
-                              <span>{reporter.email || reporter.mobile || 'No contact'}</span>
-                            </div>
-                          </div>
-                        </div>
-
-                      </div>
-
-                      {/* Reason Description */}
-                      <div className="report-reason-box">
-                        <strong>Complaint Reason:</strong>
-                        <p>{report.reason || 'No specific description provided by reporter.'}</p>
-
-                        {/* Display Report Viewed & Acknowledged status right below Complaint Reason */}
-                        {(() => {
-                          const isAck = report.isAcknowledged === true || 
-                                        report.details === 'Report Viewed & Acknowledged' ||
-                                        (reported.warnings && reported.warnings.some((w) => w.isAcknowledged === true));
-                          const ackDate = report.acknowledgedAt || 
-                                          (reported.warnings && reported.warnings.find((w) => w.isAcknowledged === true)?.acknowledgedAt);
-
-                          if (isAck) {
-                            return (
-                              <div style={{ marginTop: '10px', padding: '10px 14px', backgroundColor: 'rgba(16, 185, 129, 0.12)', borderRadius: '8px', border: '1px solid rgba(16, 185, 129, 0.3)', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                <ShieldCheck size={18} color="#10B981" />
-                                <div>
-                                  <span style={{ fontSize: '13px', fontWeight: '700', color: '#10B981' }}>Report Viewed & Acknowledged</span>
-                                  {ackDate && (
-                                    <span style={{ fontSize: '11px', color: '#6EE7B7', marginLeft: '8px' }}>
-                                      ({new Date(ackDate).toLocaleString()})
-                                    </span>
                                   )}
                                 </div>
                               </div>
-                            );
-                          }
-                          return null;
-                        })()}
-                      </div>
+                            </td>
+                            <td>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '9px' }}>
+                                <div
+                                  style={{
+                                    width: '30px',
+                                    height: '30px',
+                                    borderRadius: '50%',
+                                    backgroundColor: getAvatarColor(reporterName),
+                                    color: '#ffffff',
+                                    fontWeight: '800',
+                                    fontSize: '12px',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    flexShrink: 0,
+                                  }}
+                                >
+                                  {reporterInitial}
+                                </div>
+                                <div>
+                                  <div style={{ fontWeight: '700', color: '#0f172a', fontSize: '13px' }}>
+                                    {reporterName}
+                                  </div>
+                                  <div style={{ fontSize: '11.5px', color: '#64748b' }}>
+                                    {reporter.email || reporter.mobile || <span style={{ color: '#94a3b8', fontStyle: 'italic' }}>Anonymous</span>}
+                                  </div>
+                                </div>
+                              </div>
+                            </td>
+                            <td>
+                              <span
+                                style={{
+                                  display: 'inline-block',
+                                  fontSize: '11.5px',
+                                  fontWeight: '700',
+                                  color: '#be185d',
+                                  backgroundColor: '#fff0f5',
+                                  border: '1px solid #fbcfe8',
+                                  padding: '4px 9px',
+                                  borderRadius: '6px',
+                                  maxWidth: '150px',
+                                  overflow: 'hidden',
+                                  textOverflow: 'ellipsis',
+                                  whiteSpace: 'nowrap',
+                                }}
+                                title={categoryText}
+                              >
+                                {categoryText}
+                              </span>
+                            </td>
+                            <td>
+                              <div
+                                style={{
+                                  backgroundColor: '#f8fafc',
+                                  border: '1px solid #e2e8f0',
+                                  borderRadius: '8px',
+                                  padding: '6px 10px',
+                                  fontSize: '12px',
+                                  color: '#334155',
+                                  lineHeight: '1.4',
+                                  maxWidth: '240px',
+                                  wordBreak: 'break-word',
+                                }}
+                                title="Click 'View' to read full complaint description"
+                              >
+                                {reasonSnippet}
+                              </div>
+                              {isAck && (
+                                <div style={{ marginTop: '4px', fontSize: '11px', color: '#10b981', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '3px' }}>
+                                  <ShieldCheck size={12} />
+                                  <span>Viewed & Acknowledged</span>
+                                </div>
+                              )}
+                            </td>
+                            <td>
+                              {getReportStatusBadge(report.status)}
+                            </td>
+                            <td style={{ textAlign: 'center' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
+                                {/* VIEW BUTTON */}
+                                <button
+                                  type="button"
+                                  onClick={() => handleOpenReportModal(report)}
+                                  className="btn-view-contact-report"
+                                  style={{
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: '5px',
+                                    padding: '6px 10px',
+                                    borderRadius: '8px',
+                                    border: '1.5px solid #fed7e2',
+                                    backgroundColor: '#fff5f7',
+                                    color: '#FE3C72',
+                                    fontSize: '12px',
+                                    fontWeight: '700',
+                                    cursor: 'pointer',
+                                    transition: 'all 0.2s ease',
+                                    boxShadow: '0 1px 3px rgba(254, 60, 114, 0.12)',
+                                  }}
+                                  title="View full report & complaint details"
+                                >
+                                  <Eye size={13} />
+                                  <span>View</span>
+                                </button>
 
-                      {/* Single Row: Status Dropdown & Badge (Left/Besides) & Right-Most Submit Reported User Form Button */}
-                      <div className="report-card-footer-row">
-                        <div className="selected-status-display" style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                          <span className="status-label-title">Change Status:</span>
-                          <ResponsiveSelect
-                            options={[
-                              { value: 'pending', label: 'Pending' },
-                              { value: 'reviewed', label: 'Under Review' },
-                              { value: 'resolved', label: 'Resolved' },
-                              { value: 'dismissed', label: 'Dismissed' },
-                            ]}
-                            value={(report.status || 'pending').toLowerCase()}
-                            onChange={(val) => handleUpdateStatus(report._id, val)}
-                            compact
-                            style={{ minWidth: '135px' }}
-                          />
-                          {getReportStatusBadge(report.status)}
+                                {/* STATUS SELECT */}
+                                <ResponsiveSelect
+                                  options={[
+                                    { value: 'pending', label: 'Pending' },
+                                    { value: 'reviewed', label: 'Under Review' },
+                                    { value: 'resolved', label: 'Resolved' },
+                                    { value: 'dismissed', label: 'Dismissed' },
+                                  ]}
+                                  value={(report.status || 'pending').toLowerCase()}
+                                  onChange={(val) => handleUpdateStatus(report._id, val)}
+                                  compact
+                                  style={{ minWidth: '120px' }}
+                                />
+
+                                {/* WARN BUTTON */}
+                                <button
+                                  type="button"
+                                  onClick={() => openReportModalForUser(reported, report._id)}
+                                  style={{
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: '4px',
+                                    padding: '6px 9px',
+                                    borderRadius: '8px',
+                                    border: '1px solid #fecdd3',
+                                    backgroundColor: '#fff1f2',
+                                    color: '#e11d48',
+                                    fontSize: '12px',
+                                    fontWeight: '700',
+                                    cursor: 'pointer',
+                                    transition: 'all 0.15s ease',
+                                  }}
+                                  title="Issue official warning / action form"
+                                >
+                                  <AlertTriangle size={13} />
+                                  <span>Warn</span>
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Mobile Cards View */}
+                <div className="contact-mobile-cards-container">
+                  {paginatedReports.map((report) => {
+                    const reporter = report.reporterId || {};
+                    const reported = report.reportedId || {};
+                    const reportedName = reported.name || reported.firstName || 'Reported User';
+                    const reporterName = reporter.name || reporter.firstName || 'Reporter';
+                    const categoryText = report.category || (report.reason && report.reason.startsWith('[') ? report.reason.split(']')[0].replace('[', '') : 'Community Flag');
+
+                    return (
+                      <div key={report._id} className="contact-mobile-card">
+                        <div className="contact-mobile-card-header">
+                          <div className="contact-mobile-sender">
+                            <span className="sender-name">{reportedName}</span>
+                            <span className="sender-time">
+                              Reported on: {new Date(report.createdAt).toLocaleDateString([], { month: 'short', day: 'numeric' })} • {new Date(report.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                            </span>
+                          </div>
+                          <div>
+                            {getReportStatusBadge(report.status)}
+                          </div>
                         </div>
 
-                        <button 
-                          type="button"
-                          className="btn-create-report btn-card-submit-report"
-                          onClick={() => openReportModalForUser(reported, report._id)}
-                          title="Submit Reported User Form for this user"
-                        >
-                          <PlusCircle size={14} />
-                          <span>Submit Reported User Form</span>
-                        </button>
-                      </div>
+                        <div className="contact-mobile-card-body">
+                          <div className="contact-mobile-topic">
+                            <span className="topic-badge">{categoryText}</span>
+                          </div>
 
-                    </div>
-                  );
-                })}
+                          <div className="contact-mobile-info">
+                            <div style={{ fontSize: '12px', color: '#475569' }}>
+                              <strong>Reported by:</strong> {reporterName} {reporter.email ? `(${reporter.email})` : ''}
+                            </div>
+                            {(reported.email || reported.mobile) && (
+                              <div style={{ fontSize: '11.5px', color: '#64748b' }}>
+                                Contact: {reported.email || reported.mobile}
+                              </div>
+                            )}
+                          </div>
+
+                          <div className="contact-mobile-message-box">
+                            {report.reason || 'No description content.'}
+                          </div>
+                        </div>
+
+                        <div className="contact-mobile-card-footer">
+                          <button
+                            type="button"
+                            onClick={() => handleOpenReportModal(report)}
+                            className="mobile-view-btn"
+                            style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '5px',
+                              padding: '6px 14px',
+                              borderRadius: '8px',
+                              border: '1.5px solid #fed7e2',
+                              backgroundColor: '#fff5f7',
+                              color: '#FE3C72',
+                              fontSize: '12.5px',
+                              fontWeight: '700',
+                              cursor: 'pointer',
+                            }}
+                          >
+                            <Eye size={14} />
+                            <span>View All Details</span>
+                          </button>
+
+                          <div className="status-select-group" style={{ flex: 1, minWidth: '130px' }}>
+                            <ResponsiveSelect
+                              options={[
+                                { value: 'pending', label: 'Pending' },
+                                { value: 'reviewed', label: 'Under Review' },
+                                { value: 'resolved', label: 'Resolved' },
+                                { value: 'dismissed', label: 'Dismissed' },
+                              ]}
+                              value={(report.status || 'pending').toLowerCase()}
+                              onChange={(val) => handleUpdateStatus(report._id, val)}
+                              compact
+                            />
+                          </div>
+
+                          <button
+                            type="button"
+                            onClick={() => openReportModalForUser(reported, report._id)}
+                            style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '4px',
+                              padding: '6px 12px',
+                              borderRadius: '8px',
+                              border: '1px solid #fecdd3',
+                              backgroundColor: '#fff1f2',
+                              color: '#e11d48',
+                              fontSize: '12px',
+                              fontWeight: '700',
+                              cursor: 'pointer',
+                            }}
+                          >
+                            <AlertTriangle size={13} />
+                            <span>Warn</span>
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
 
                 {/* Pagination Controls Footer for Reports */}
                 <div className="pagination-wrapper" style={{ marginTop: '20px' }}>
@@ -1511,7 +1914,7 @@ export const Dashboard = ({ adminUser, onLogout }) => {
                     </button>
                   </div>
                 </div>
-              </div>
+              </>
             )}
           </div>
         )}
@@ -2841,6 +3244,316 @@ export const Dashboard = ({ adminUser, onLogout }) => {
           </div>
         </div>
       )}
+
+      {/* ========================================================================== */}
+      {/* REPORTED USER COMPLAINT DETAILS MODAL */}
+      {/* ========================================================================== */}
+      {viewReportModal.open && viewReportModal.report && (() => {
+        const report = viewReportModal.report;
+        const reported = report.reportedId || {};
+        const reporter = report.reporterId || {};
+        const reportedName = reported.name || reported.firstName || 'Reported User';
+        const reporterName = reporter.name || reporter.firstName || 'Reporter';
+        const reportedInitial = (reportedName || 'R')[0].toUpperCase();
+        const reporterInitial = (reporterName || 'U')[0].toUpperCase();
+
+        const warnList = reported.warnings || [];
+        const ackWarn = warnList.find((w) => w.isAcknowledged === true);
+        const pendingWarn = warnList.find((w) => w.isAcknowledged === false);
+        const isAck = report.isAcknowledged === true || report.details === 'Report Viewed & Acknowledged' || !!ackWarn;
+        const ackDate = report.acknowledgedAt || ackWarn?.acknowledgedAt;
+
+        const categoryText = report.category || (report.reason && report.reason.startsWith('[') ? report.reason.split(']')[0].replace('[', '') : 'Community Guidelines Violation');
+
+        return (
+          <div className="modal-backdrop animate-fade-in" onClick={() => setViewReportModal({ open: false, report: null })}>
+            <div className="modal-container contact-details-modal animate-slide-up" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '680px', width: '92%' }}>
+              
+              {/* Modal Header */}
+              <div className="modal-header">
+                <div className="modal-title-box">
+                  <div className="modal-icon-badge" style={{ backgroundColor: '#fff0f5', color: '#FE3C72' }}>
+                    <ShieldAlert size={22} />
+                  </div>
+                  <div className="modal-title-text">
+                    <h3>Reported User Complaint Details</h3>
+                    <p>
+                      Ticket #{report._id?.substring(report._id.length - 8) || report._id} • Logged {formatDateTime(report.createdAt)}
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  className="modal-close-btn"
+                  onClick={() => setViewReportModal({ open: false, report: null })}
+                >
+                  <X size={18} />
+                </button>
+              </div>
+
+              {/* Modal Content Body */}
+              <div className="modal-body contact-modal-body">
+                
+                {/* Row 1: Reported User Profile & Status Action */}
+                <div className="contact-modal-info-grid" style={{ backgroundColor: '#f8fafc', padding: '16px', borderRadius: '14px', border: '1px solid #e2e8f0' }}>
+                  <div>
+                    <span style={{ fontSize: '11px', fontWeight: '700', color: '#e11d48', textTransform: 'uppercase', letterSpacing: '0.5px', display: 'flex', alignItems: 'center', gap: '4px', marginBottom: '8px' }}>
+                      <AlertTriangle size={13} color="#e11d48" /> Reported User
+                    </span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                      <div style={{
+                        width: '42px',
+                        height: '42px',
+                        borderRadius: '50%',
+                        backgroundColor: getAvatarColor(reportedName),
+                        color: '#ffffff',
+                        fontWeight: '800',
+                        fontSize: '16px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        flexShrink: 0,
+                      }}>
+                        {reportedInitial}
+                      </div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: '15px', fontWeight: '800', color: '#0f172a', wordBreak: 'break-word' }}>
+                          {reportedName}
+                        </div>
+                        <div style={{ fontSize: '11.5px', color: '#64748b', marginTop: '2px', display: 'flex', alignItems: 'center', gap: '4px', flexWrap: 'wrap' }}>
+                          <Calendar size={12} color="#FE3C72" style={{ flexShrink: 0 }} />
+                          <span>Reported on: <strong>{formatDateTime(report.createdAt)}</strong></span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div>
+                    <span style={{ fontSize: '11px', fontWeight: '700', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.5px', display: 'block', marginBottom: '8px' }}>
+                      Investigation Status
+                    </span>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                        <ResponsiveSelect
+                          options={[
+                            { value: 'pending', label: 'Pending' },
+                            { value: 'reviewed', label: 'Under Review' },
+                            { value: 'resolved', label: 'Resolved' },
+                            { value: 'dismissed', label: 'Dismissed' },
+                          ]}
+                          value={(report.status || 'pending').toLowerCase()}
+                          onChange={(val) => handleModalReportStatusChange(val)}
+                          style={{ flex: 1, minWidth: '130px' }}
+                        />
+                        {getReportStatusBadge(report.status)}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Row 2: Reported User & Reporter Contact Info Grid */}
+                <div className="contact-modal-info-grid">
+                  
+                  {/* Reported User Contact Details */}
+                  <div style={{ padding: '14px', backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '12px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', flexWrap: 'wrap' }}>
+                      <span style={{ fontSize: '11.5px', fontWeight: '700', color: '#64748b', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                        <User size={14} color="#e11d48" style={{ flexShrink: 0 }} /> Reported User Info
+                      </span>
+                      {reported.email && (
+                        <button
+                          type="button"
+                          onClick={() => handleCopyText(reported.email, 'reportedEmail')}
+                          style={{ background: 'none', border: 'none', color: '#3b82f6', cursor: 'pointer', fontSize: '11px', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '3px' }}
+                        >
+                          {copiedField === 'reportedEmail' ? <Check size={12} color="#10b981" /> : <Copy size={12} />}
+                          <span>{copiedField === 'reportedEmail' ? 'Copied!' : 'Copy'}</span>
+                        </button>
+                      )}
+                    </div>
+                    {reported.email ? (
+                      <div style={{ fontSize: '13px', fontWeight: '600', color: '#0f172a', wordBreak: 'break-all' }}>
+                        {reported.email}
+                      </div>
+                    ) : (
+                      <span style={{ fontSize: '12.5px', color: '#94a3b8', fontStyle: 'italic' }}>No email registered</span>
+                    )}
+                    {reported.mobile && (
+                      <div style={{ fontSize: '12px', color: '#64748b', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                        <Phone size={11} color="#10b981" />
+                        <span>{reported.mobile}</span>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Reporter Contact Details */}
+                  <div style={{ padding: '14px', backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '12px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', flexWrap: 'wrap' }}>
+                      <span style={{ fontSize: '11.5px', fontWeight: '700', color: '#64748b', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                        <User size={14} color="#3b82f6" style={{ flexShrink: 0 }} /> Submitted By (Reporter)
+                      </span>
+                      {reporter.email && (
+                        <button
+                          type="button"
+                          onClick={() => handleCopyText(reporter.email, 'reporterEmail')}
+                          style={{ background: 'none', border: 'none', color: '#10b981', cursor: 'pointer', fontSize: '11px', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '3px' }}
+                        >
+                          {copiedField === 'reporterEmail' ? <Check size={12} color="#10b981" /> : <Copy size={12} />}
+                          <span>{copiedField === 'reporterEmail' ? 'Copied!' : 'Copy'}</span>
+                        </button>
+                      )}
+                    </div>
+                    <div style={{ fontSize: '13.5px', fontWeight: '700', color: '#0f172a' }}>
+                      {reporterName}
+                    </div>
+                    {reporter.email ? (
+                      <a
+                        href={`mailto:${reporter.email}`}
+                        style={{ fontSize: '12.5px', color: '#2563eb', textDecoration: 'none', wordBreak: 'break-all' }}
+                      >
+                        {reporter.email}
+                      </a>
+                    ) : (
+                      <span style={{ fontSize: '12px', color: '#94a3b8', fontStyle: 'italic' }}>Anonymous / In-app Report</span>
+                    )}
+                    {reporter.mobile && (
+                      <div style={{ fontSize: '12px', color: '#64748b' }}>
+                        {reporter.mobile}
+                      </div>
+                    )}
+                  </div>
+
+                </div>
+
+                {/* Row 3: Category / Topic */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                  <span style={{ fontSize: '12px', fontWeight: '700', color: '#475569' }}>
+                    Complaint Reason & Category
+                  </span>
+                  <div style={{
+                    padding: '10px 14px',
+                    backgroundColor: '#fff0f5',
+                    border: '1px solid #fbcfe8',
+                    borderRadius: '10px',
+                    fontSize: '13.5px',
+                    fontWeight: '700',
+                    color: '#be185d',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    wordBreak: 'break-word',
+                  }}>
+                    <Flag size={16} color="#FE3C72" style={{ flexShrink: 0 }} />
+                    <span>{categoryText}</span>
+                  </div>
+                </div>
+
+                {/* Row 4: Full Complaint Description & Reason Box */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px' }}>
+                    <span style={{ fontSize: '12.5px', fontWeight: '800', color: '#0f172a', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <FileText size={15} color="#FE3C72" style={{ flexShrink: 0 }} />
+                      <span>Reporter Statement / Details</span>
+                    </span>
+                    {report.reason && (
+                      <button
+                        type="button"
+                        onClick={() => handleCopyText(report.reason, 'reportReason')}
+                        style={{ background: '#f1f5f9', border: '1px solid #cbd5e1', padding: '4px 10px', borderRadius: '6px', color: '#475569', cursor: 'pointer', fontSize: '11.5px', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '4px' }}
+                      >
+                        {copiedField === 'reportReason' ? <Check size={12} color="#10b981" /> : <Copy size={12} />}
+                        <span>{copiedField === 'reportReason' ? 'Copied!' : 'Copy Statement'}</span>
+                      </button>
+                    )}
+                  </div>
+
+                  <div
+                    style={{
+                      backgroundColor: '#ffffff',
+                      border: '1.5px solid #e2e8f0',
+                      borderRadius: '12px',
+                      padding: '14px',
+                      fontSize: '13.5px',
+                      color: '#1e293b',
+                      lineHeight: '1.6',
+                      maxHeight: '180px',
+                      overflowY: 'auto',
+                      whiteSpace: 'pre-wrap',
+                      wordBreak: 'break-word',
+                      boxShadow: 'inset 0 1px 3px rgba(0, 0, 0, 0.02)',
+                    }}
+                  >
+                    {report.reason || 'No description provided by reporter.'}
+                  </div>
+                </div>
+
+                {/* Row 5: Warning / User Acknowledgment Status */}
+                {isAck ? (
+                  <div style={{ padding: '12px 14px', backgroundColor: 'rgba(16, 185, 129, 0.12)', borderRadius: '10px', border: '1px solid rgba(16, 185, 129, 0.3)', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <ShieldCheck size={20} color="#10B981" style={{ flexShrink: 0 }} />
+                    <div>
+                      <div style={{ fontSize: '13px', fontWeight: '700', color: '#065f46' }}>Report Viewed & Acknowledged by User</div>
+                      {ackDate && (
+                        <div style={{ fontSize: '11.5px', color: '#047857', marginTop: '2px' }}>
+                          Acknowledged on {new Date(ackDate).toLocaleString()}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ) : pendingWarn ? (
+                  <div style={{ padding: '12px 14px', backgroundColor: '#fffbeb', borderRadius: '10px', border: '1px solid #fde68a', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <AlertTriangle size={20} color="#d97706" style={{ flexShrink: 0 }} />
+                    <div>
+                      <div style={{ fontSize: '13px', fontWeight: '700', color: '#92400e' }}>Warning Issued (Pending Acknowledgment)</div>
+                      <div style={{ fontSize: '11.5px', color: '#b45309', marginTop: '2px' }}>
+                        User has been notified and must acknowledge the community guidelines.
+                      </div>
+                    </div>
+                  </div>
+                ) : null}
+
+              </div>
+
+              {/* Modal Footer */}
+              <div className="modal-footer contact-modal-footer">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setViewReportModal({ open: false, report: null });
+                    openReportModalForUser(reported, report._id);
+                  }}
+                  style={{
+                    padding: '8px 16px',
+                    borderRadius: '10px',
+                    border: '1px solid #fecdd3',
+                    backgroundColor: '#fff1f2',
+                    color: '#e11d48',
+                    fontWeight: '700',
+                    fontSize: '13px',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                  }}
+                >
+                  <AlertTriangle size={15} />
+                  <span>Submit Reported User Form / Warn</span>
+                </button>
+
+                <button
+                  type="button"
+                  className="btn-primary-submit"
+                  onClick={() => setViewReportModal({ open: false, report: null })}
+                  style={{ padding: '8px 24px' }}
+                >
+                  Close
+                </button>
+              </div>
+
+            </div>
+          </div>
+        );
+      })()}
 
       </div>
     </div>
