@@ -99,7 +99,7 @@ export const LoginPage = ({ onLoginSuccess }) => {
                   <Mail className="field-icon" size={18} />
                   <input
                     type="text"
-                    className="form-input"
+                    className="form-input login-input"
                     placeholder="Username or Email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
@@ -115,7 +115,7 @@ export const LoginPage = ({ onLoginSuccess }) => {
                   <Lock className="field-icon" size={18} />
                   <input
                     type={showPassword ? 'text' : 'password'}
-                    className="form-input"
+                    className="form-input login-input"
                     placeholder="Password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}

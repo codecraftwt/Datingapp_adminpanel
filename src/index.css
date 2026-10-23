@@ -237,32 +237,39 @@ body {
   transition: color 0.2s ease;
 }
 
-.form-input {
-  width: 100%;
-  height: 48px;
-  padding: 0 44px 0 44px !important;
-  font-size: 14px;
+.input-field-wrapper .form-input,
+.login-input {
+  width: 100% !important;
+  height: 48px !important;
+  padding-left: 44px !important;
+  padding-right: 44px !important;
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
+  font-size: 14px !important;
   font-family: var(--font-family);
-  color: #1a202c;
-  background-color: #ffffff;
-  border: 1.5px solid var(--input-border);
-  border-radius: 8px;
-  outline: none;
-  line-height: normal;
+  color: #1a202c !important;
+  background-color: #ffffff !important;
+  border: 1.5px solid var(--input-border) !important;
+  border-radius: 8px !important;
+  outline: none !important;
+  line-height: normal !important;
+  box-sizing: border-box !important;
   transition: all 0.2s ease-in-out;
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
 }
 
-.form-input::placeholder {
-  color: #a0aec0;
-  font-weight: 400;
-  opacity: 1;
+.input-field-wrapper .form-input::placeholder,
+.login-input::placeholder {
+  color: #a0aec0 !important;
+  font-weight: 400 !important;
+  opacity: 1 !important;
 }
 
-.form-input:focus {
-  border-color: var(--primary-color);
-  box-shadow: 0 0 0 3.5px rgba(255, 77, 109, 0.18);
-  background-color: #ffffff;
+.input-field-wrapper .form-input:focus,
+.login-input:focus {
+  border-color: var(--primary-color) !important;
+  box-shadow: 0 0 0 3.5px rgba(255, 77, 109, 0.18) !important;
+  background-color: #ffffff !important;
 }
 
 .input-field-wrapper:focus-within .field-icon {
@@ -3570,6 +3577,34 @@ select.filter-select {
     min-height: 70px !important;
   }
 
+  /* Admin Login Inputs: maintain proper padding and icon alignment on mobile */
+  .input-field-wrapper .form-input,
+  .login-input {
+    height: 48px !important;
+    padding-left: 44px !important;
+    padding-right: 44px !important;
+    padding-top: 0 !important;
+    padding-bottom: 0 !important;
+    font-size: 13.5px !important;
+    box-sizing: border-box !important;
+  }
+
+  .input-field-wrapper .field-icon {
+    position: absolute !important;
+    left: 14px !important;
+    top: 50% !important;
+    transform: translateY(-50%) !important;
+    z-index: 2 !important;
+  }
+
+  .password-toggle-btn {
+    position: absolute !important;
+    right: 12px !important;
+    top: 50% !important;
+    transform: translateY(-50%) !important;
+    z-index: 2 !important;
+  }
+
   .severity-picker {
     display: flex !important;
     flex-wrap: wrap !important;
@@ -3896,6 +3931,34 @@ select.admin-native-select {
 
   .form-textarea {
     min-height: 65px !important;
+  }
+
+  /* Admin Login Inputs: maintain proper padding and icon alignment on small mobile */
+  .input-field-wrapper .form-input,
+  .login-input {
+    height: 46px !important;
+    padding-left: 44px !important;
+    padding-right: 44px !important;
+    padding-top: 0 !important;
+    padding-bottom: 0 !important;
+    font-size: 13px !important;
+    box-sizing: border-box !important;
+  }
+
+  .input-field-wrapper .field-icon {
+    position: absolute !important;
+    left: 14px !important;
+    top: 50% !important;
+    transform: translateY(-50%) !important;
+    z-index: 2 !important;
+  }
+
+  .password-toggle-btn {
+    position: absolute !important;
+    right: 12px !important;
+    top: 50% !important;
+    transform: translateY(-50%) !important;
+    z-index: 2 !important;
   }
 
   /* Severity Picker 2x2 Grid */
